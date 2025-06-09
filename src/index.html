@@ -190,7 +190,7 @@
             scheduler = new ResourceScheduler('#scheduler-container', {
                 cellWidth: 80,
                 rowHeight: 50,
-                daysToShow: 21, // 3 weeks initial
+                daysToShow: 20, // 3 weeks initial
                 infiniteScroll: true,
                 loadThreshold: 7, // Load more when 7 days left visible
                 bufferDays: 14, // Keep 14 days buffer
@@ -261,6 +261,10 @@
             
             scheduler.on('scrolledToDate', (data) => {
                 logEvent('Scrolled to Date', `Scrolled to ${data.date.toLocaleDateString()}`);
+            });
+            
+            scheduler.on('navigationLimitReached', (data) => {
+                logEvent('Navigation Limit', `Cannot go ${data.direction} - ${data.reason.replace('_', ' ')}`);
             });
         }
         
@@ -339,14 +343,14 @@
         }
         
         function testInfiniteScroll() {
-            const timelineArea = document.querySelector('.timeline-area');
-            if (!timelineArea) return;
+            const schedulerContainer = document.querySelector('#scheduler-container');
+            if (!schedulerContainer) return;
             
             // Scroll to the right edge to trigger loading
-            const maxScroll = timelineArea.scrollWidth - timelineArea.clientWidth;
+            const maxScroll = schedulerContainer.scrollWidth - schedulerContainer.clientWidth;
             const targetScroll = maxScroll - 200; // Almost at the end
             
-            timelineArea.scrollLeft = targetScroll;
+            schedulerContainer.scrollLeft = targetScroll;
             logEvent('Test Scroll', `Scrolled to position ${targetScroll} to test infinite loading`);
         }
         

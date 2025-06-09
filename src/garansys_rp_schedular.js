@@ -106,7 +106,9 @@ class ResourceScheduler {
             <div class="scheduler-container">
                 <div class="scheduler-header">
                     <div class="resource-header">Resources</div>
-                    <div class="days-header"></div>
+                    <div class="days-header-container">
+                        <div class="days-header"></div>
+                    </div>
                 </div>
                 <div class="scheduler-content">
                     <div class="resources-column"></div>
@@ -169,17 +171,48 @@ class ResourceScheduler {
         document.addEventListener('mousemove', this.handleMouseMove);
         document.addEventListener('mouseup', this.handleMouseUp);
         
-        // Infinite scroll events
-        if (this.options.infiniteScroll) {
-            // Add scroll listener to the main container (which now has overflow)
-            this.container.addEventListener('scroll', this.handleScroll, { passive: true });
+        // Setup scroll synchronization AFTER HTML is created
+        this.syncScroll();
+        
+        // Always add scroll listener to timeline-area like the working example
+        const timelineArea = this.container.querySelector('.timeline-area');
+        console.log('🔧 Adding scroll listener to timeline-area:', timelineArea);
+        if (timelineArea) {
+            timelineArea.addEventListener('scroll', this.handleScroll, { passive: true });
             
-            // Also listen for horizontal scroll on timeline area
-            const timelineArea = this.container.querySelector('.timeline-area');
-            if (timelineArea) {
-                timelineArea.addEventListener('scroll', this.handleScroll, { passive: true });
-            }
+            // Debug: Test if timeline-area is scrollable
+            setTimeout(() => {
+                console.log('📊 Timeline-area scroll info:', {
+                    scrollWidth: timelineArea.scrollWidth,
+                    clientWidth: timelineArea.clientWidth,
+                    scrollHeight: timelineArea.scrollHeight,
+                    clientHeight: timelineArea.clientHeight,
+                    canScrollHorizontal: timelineArea.scrollWidth > timelineArea.clientWidth,
+                    canScrollVertical: timelineArea.scrollHeight > timelineArea.clientHeight
+                });
+            }, 100);
         }
+    }
+    
+    /**
+     * Synchronize scroll between timeline-area and days-header
+     */
+    syncScroll() {
+        const daysHeaderContainer = this.container.querySelector('.days-header-container');
+        const timelineArea = this.container.querySelector('.timeline-area');
+        
+        console.log('🔗 Setting up scroll sync between:', { daysHeaderContainer, timelineArea });
+        
+        if (!daysHeaderContainer || !timelineArea) {
+            console.warn('Could not find elements for scroll sync:', { daysHeaderContainer, timelineArea });
+            return;
+        }
+        
+        // Sync header container scroll with timeline-area scroll (like working example)
+        timelineArea.addEventListener('scroll', () => {
+            daysHeaderContainer.scrollLeft = timelineArea.scrollLeft;
+            console.log('📜 Syncing scroll:', timelineArea.scrollLeft);
+        });
     }
     
     render() {
@@ -622,12 +655,39 @@ class ResourceScheduler {
     }
     
     goToNextWeek() {
+        // If infinite scroll is disabled, check if we can go further
+        if (!this.options.infiniteScroll) {
+            const nextWeekStart = new Date(this.currentStartDate);
+            nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+            
+            const maxDate = new Date(this.loadedDateRange.end);
+            maxDate.setDate(maxDate.getDate() - 7); // Keep at least a week visible
+            
+            if (nextWeekStart > maxDate) {
+                console.warn('Cannot go to next week - infinite scroll disabled and reached end of loaded range');
+                this.emit('navigationLimitReached', { direction: 'next', reason: 'infinite_scroll_disabled' });
+                return;
+            }
+        }
+        
         const nextWeek = new Date(this.currentStartDate);
         nextWeek.setDate(nextWeek.getDate() + 7);
         this.setDateRange(nextWeek, this.options.daysToShow);
     }
     
     goToPreviousWeek() {
+        // If infinite scroll is disabled, check if we can go back
+        if (!this.options.infiniteScroll) {
+            const prevWeekStart = new Date(this.currentStartDate);
+            prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+            
+            if (prevWeekStart < this.loadedDateRange.start) {
+                console.warn('Cannot go to previous week - infinite scroll disabled and reached start of loaded range');
+                this.emit('navigationLimitReached', { direction: 'previous', reason: 'infinite_scroll_disabled' });
+                return;
+            }
+        }
+        
         const prevWeek = new Date(this.currentStartDate);
         prevWeek.setDate(prevWeek.getDate() - 7);
         this.setDateRange(prevWeek, this.options.daysToShow);
@@ -643,10 +703,8 @@ class ResourceScheduler {
         document.removeEventListener('mousemove', this.handleMouseMove);
         document.removeEventListener('mouseup', this.handleMouseUp);
         
-        // Remove infinite scroll listener
-        if (this.options.infiniteScroll) {
-            this.container.removeEventListener('scroll', this.handleScroll);
-        }
+        // Remove scroll listener (always present now)
+        this.container.removeEventListener('scroll', this.handleScroll);
         
         // Remove modal if it exists
         const modal = document.getElementById('taskModal');
@@ -666,36 +724,45 @@ class ResourceScheduler {
     // Infinite Scroll Methods
     
     /**
-     * Handle scroll events for infinite scrolling
+     * Handle scroll events - always active for sync, infinite loading is optional
      */
-    handleScroll() {
-        if (!this.options.infiniteScroll || this.isLoading || this.hasReachedEnd) return;
+    handleScroll(e) {
+        console.log('🖱️ Scroll event triggered!', e.target);
         
-        const timelineArea = this.container.querySelector('.timeline-area');
-        if (!timelineArea) return;
+        const element = e.target;
+        const scrollLeft = element.scrollLeft;
+        const scrollWidth = element.scrollWidth;
+        const clientWidth = element.clientWidth;
         
-        const scrollLeft = timelineArea.scrollLeft;
-        const scrollWidth = timelineArea.scrollWidth;
-        const clientWidth = timelineArea.clientWidth;
-        
-        // Calculate how many days from the right edge
-        const daysFromEnd = Math.ceil((scrollWidth - scrollLeft - clientWidth) / this.options.cellWidth);
-        
-        console.log('Scroll check:', {
-            scrollLeft,
-            scrollWidth,
-            clientWidth,
-            daysFromEnd,
-            threshold: this.options.loadThreshold
-        });
-        
-        // Load more if we're within threshold
-        if (daysFromEnd <= this.options.loadThreshold) {
-            this.loadMoreDays();
+        // Always log scroll info for debugging
+        if (this.options.infiniteScroll) {
+            const scrollPercentage = ((scrollLeft + clientWidth) / scrollWidth * 100);
+            const shouldLoad = scrollLeft + clientWidth >= scrollWidth * 0.9;
+            
+            console.log('Scroll debug:', {
+                scrollLeft,
+                scrollWidth,
+                clientWidth,
+                scrollPercentage: scrollPercentage.toFixed(1) + '%',
+                shouldLoad,
+                isLoading: this.isLoading,
+                hasReachedEnd: this.hasReachedEnd,
+                threshold90: scrollWidth * 0.9,
+                currentPosition: scrollLeft + clientWidth
+            });
         }
         
-        // Clean up old days if we have too many
-        this.cleanupOldDays();
+        // Only do infinite loading if enabled and not already loading
+        if (this.options.infiniteScroll && !this.isLoading && !this.hasReachedEnd) {
+            // Load more content when approaching the end (90% scrolled)
+            if (scrollLeft + clientWidth >= scrollWidth * 0.9) {
+                console.log('🚀 Triggering loadMoreDays()');
+                this.loadMoreDays();
+            }
+            
+            // Clean up old days if we have too many
+            this.cleanupOldDays();
+        }
     }
     
     /**
@@ -773,10 +840,7 @@ class ResourceScheduler {
     cleanupOldDays() {
         if (this.options.daysToShow <= this.options.maxDaysInMemory) return;
         
-        const timelineArea = this.container.querySelector('.timeline-area');
-        if (!timelineArea) return;
-        
-        const scrollLeft = timelineArea.scrollLeft;
+        const scrollLeft = this.container.scrollLeft;
         const visibleStartDay = Math.floor(scrollLeft / this.options.cellWidth);
         
         // Keep buffer days before visible area
@@ -811,7 +875,7 @@ class ResourceScheduler {
             this.renderTasks();
             
             // Adjust scroll position to maintain visual position
-            timelineArea.scrollLeft = scrollLeft - (keepFromDay * this.options.cellWidth);
+            this.container.scrollLeft = scrollLeft - (keepFromDay * this.options.cellWidth);
             
             this.emit('daysCleanedUp', {
                 removedDays: keepFromDay,
@@ -826,11 +890,8 @@ class ResourceScheduler {
      * Get the current visible date range
      */
     getVisibleDateRange() {
-        const timelineArea = this.container.querySelector('.timeline-area');
-        if (!timelineArea) return null;
-        
-        const scrollLeft = timelineArea.scrollLeft;
-        const clientWidth = timelineArea.clientWidth;
+        const scrollLeft = this.container.scrollLeft;
+        const clientWidth = this.container.clientWidth;
         
         const startDay = Math.floor(scrollLeft / this.options.cellWidth);
         const endDay = Math.ceil((scrollLeft + clientWidth) / this.options.cellWidth);
@@ -862,11 +923,8 @@ class ResourceScheduler {
             return false;
         }
         
-        const timelineArea = this.container.querySelector('.timeline-area');
-        if (!timelineArea) return false;
-        
         const scrollPosition = diffDays * this.options.cellWidth;
-        timelineArea.scrollLeft = scrollPosition;
+        this.container.scrollLeft = scrollPosition;
         
         this.emit('scrolledToDate', {
             date: targetDate,

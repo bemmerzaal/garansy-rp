@@ -28,7 +28,7 @@
 }
 
 .days-header-container {
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
 }
 
@@ -141,8 +141,8 @@
     position: absolute;
     background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     color: white;
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: 4px;
+    padding: 2px 0;
     font-size: 11px;
     font-weight: 500;
     cursor: move;
@@ -152,8 +152,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    top: 2px;
-    height: 46px;
+    top: 3px;
+    height: 44px;
     display: flex;
     align-items: center;
     min-width: 60px;
@@ -182,6 +182,12 @@
 
 .task.project {
     background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+}
+
+.task-text {
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Modal Styles */

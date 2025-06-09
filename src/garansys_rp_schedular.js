@@ -324,7 +324,7 @@ class ResourceScheduler {
         const taskEl = document.createElement('div');
         taskEl.className = `task ${task.type || 'project'}`;
         taskEl.dataset.taskId = task.id;
-        taskEl.textContent = task.title;
+        taskEl.innerHTML = `<span class="task-text">${task.title}</span>`;
         taskEl.title = `${task.title} (${task.duration} dagen)`;
         
         // Calculate position

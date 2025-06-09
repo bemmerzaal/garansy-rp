@@ -86,6 +86,8 @@
         .event-log .log-entry.event-added { color: #28a745; }
         .event-log .log-entry.event-moved { color: #ffc107; }
         .event-log .log-entry.event-removed { color: #dc3545; }
+        .event-log .log-entry.event-resize-start { color: #17a2b8; }
+        .event-log .log-entry.event-task-resized { color: #6f42c1; }
     </style>
 </head>
 <body>
@@ -237,6 +239,20 @@
             
             scheduler.on('dragStart', (data) => {
                 logEvent('Drag Start', `Started dragging "${data.task.title}"`);
+            });
+            
+            scheduler.on('resizeStart', (data) => {
+                logEvent('Resize Start', `Started resizing "${data.task.title}" from ${data.handle} handle`);
+            });
+            
+            scheduler.on('taskResized', (data) => {
+                const resourceName = resourcesData[data.task.resourceIndex].name;
+                const durationChange = data.newDuration - data.oldDuration;
+                const durationText = durationChange > 0 ? `+${durationChange}` : `${durationChange}`;
+                logEvent('Task Resized', `"${data.task.title}" resized (${durationText} days) from ${data.handle} handle. New: ${data.newStart} - ${data.newEnd}`);
+                
+                // Here you could update database
+                // updateTaskInDatabase(data.task);
             });
             
             // Infinite scroll events

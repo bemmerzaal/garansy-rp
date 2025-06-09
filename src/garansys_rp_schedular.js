@@ -15,6 +15,9 @@ class ResourceScheduler {
             rowHeight: 50,
             daysToShow: 21,
             startDate: new Date(),
+            // Modal options
+            useBuiltInModal: true,
+            cellClickAction: 'single', // 'single' or 'double' - when to open modal/emit event on cell click
             // Infinite scroll options
             infiniteScroll: true,
             loadThreshold: 7, // Load more when 7 days left
@@ -31,6 +34,8 @@ class ResourceScheduler {
         this.dragState = null;
         this.resizeState = null;
         this.selectedCell = null;
+        this.selectedTask = null;
+        this.editingTask = null;
         this.events = {};
         
         // Infinite scroll state
@@ -120,6 +125,7 @@ class ResourceScheduler {
                 </div>
             </div>
             
+            ${this.options.useBuiltInModal ? `
             <!-- Task Modal -->
             <div id="taskModal" class="modal">
                 <div class="modal-content">
@@ -153,24 +159,30 @@ class ResourceScheduler {
                     </form>
                 </div>
             </div>
+            ` : ''}
         `;
     }
     
     setupEventListeners() {
-        // Modal events
-        const modal = document.getElementById('taskModal');
-        const closeBtn = modal.querySelector('.close');
-        const form = document.getElementById('taskForm');
-        
-        closeBtn.onclick = () => this.closeTaskModal();
-        window.onclick = (e) => {
-            if (e.target === modal) this.closeTaskModal();
-        };
-        form.onsubmit = (e) => this.saveTask(e);
+        // Modal events (only if using built-in modal)
+        if (this.options.useBuiltInModal) {
+            const modal = document.getElementById('taskModal');
+            const closeBtn = modal.querySelector('.close');
+            const form = document.getElementById('taskForm');
+            
+            closeBtn.onclick = () => this.closeTaskModal();
+            window.onclick = (e) => {
+                if (e.target === modal) this.closeTaskModal();
+            };
+            form.onsubmit = (e) => this.saveTask(e);
+        }
         
         // Global mouse events for dragging
         document.addEventListener('mousemove', this.handleMouseMove);
         document.addEventListener('mouseup', this.handleMouseUp);
+        
+        // Keyboard events for task operations
+        document.addEventListener('keydown', this.handleKeyDown.bind(this));
         
         // Setup scroll synchronization AFTER HTML is created
         this.syncScroll();
@@ -311,7 +323,8 @@ class ResourceScheduler {
                     console.log(`🔲 CELL[${dayIndex}]: dataset.date="${cellEl.dataset.date}", ISO="${this.dateToYMD(date)}"`);
                 }
                 
-                cellEl.addEventListener('click', (e) => this.openTaskModal(e));
+                cellEl.addEventListener('click', (e) => this.handleCellClick(e));
+                cellEl.addEventListener('dblclick', (e) => this.handleCellDoubleClick(e));
                 rowEl.appendChild(cellEl);
             }
             
@@ -336,7 +349,10 @@ class ResourceScheduler {
         const taskEl = document.createElement('div');
         taskEl.className = `task ${task.type || 'project'}`;
         taskEl.dataset.taskId = task.id;
-        taskEl.innerHTML = `<span class="task-text">${task.title}</span>`;
+        taskEl.innerHTML = `
+            <span class="task-text">${task.title}</span>
+            <button class="task-delete-btn" title="Verwijder taak">&times;</button>
+        `;
         taskEl.title = `${task.title} (${task.duration} dagen)`;
         
         // Calculate position
@@ -352,6 +368,27 @@ class ResourceScheduler {
         
         // Add drag functionality
         taskEl.addEventListener('mousedown', (e) => this.startDrag(e));
+        
+        // Add delete functionality
+        const deleteBtn = taskEl.querySelector('.task-delete-btn');
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteTask(task.id);
+        });
+        
+        // Add click to select functionality
+        taskEl.addEventListener('click', (e) => {
+            if (!e.target.closest('.task-delete-btn')) {
+                this.selectTask(task.id);
+            }
+        });
+        
+        // Add double-click to edit functionality
+        taskEl.addEventListener('dblclick', (e) => {
+            if (!e.target.closest('.task-delete-btn')) {
+                this.handleTaskDoubleClick(task.id);
+            }
+        });
         
         // Add to timeline area
         const timelineArea = this.container.querySelector('.timeline-area');
@@ -420,48 +457,54 @@ class ResourceScheduler {
         return this.dateToYMD(endDate);
     }
     
-    openTaskModal(e) {
-        const cell = e.target.closest('.timeline-cell');
-        if (!cell || e.target.closest('.task')) return;
-        
-        this.selectedCell = {
-            resourceIndex: parseInt(cell.dataset.resourceIndex),
-            dayIndex: parseInt(cell.dataset.dayIndex),
-            date: cell.dataset.date
-        };
-        
-        // Debug: Calculate what the date SHOULD be based on dayIndex
-        const shouldBeDate = new Date(this.currentStartDate.getTime() + (this.selectedCell.dayIndex * 24 * 60 * 60 * 1000));
-        
-        console.log('🖱️ CELL CLICKED DEBUG:', {
-            dayIndex: this.selectedCell.dayIndex,
-            cellDatasetDate: this.selectedCell.date,
-            resourceIndex: this.selectedCell.resourceIndex,
-            currentStartDate: this.dateToYMD(this.currentStartDate),
-            shouldBeDate: this.dateToYMD(shouldBeDate),
-            matches: (this.selectedCell.date === this.dateToYMD(shouldBeDate)),
-            cellElement: cell
-        });
+    openTaskModal(e, existingTask = null) {
+        if (existingTask) {
+            // Editing existing task
+            this.editingTask = existingTask;
+            this.selectedCell = null;
+        } else {
+            // Creating new task from cell click
+            const cell = e.target.closest('.timeline-cell');
+            if (!cell || e.target.closest('.task')) return;
+            
+            this.selectedCell = {
+                resourceIndex: parseInt(cell.dataset.resourceIndex),
+                dayIndex: parseInt(cell.dataset.dayIndex),
+                date: cell.dataset.date
+            };
+            
+            this.editingTask = null;
+        }
         
         const modal = document.getElementById('taskModal');
-        modal.style.display = 'block';
+        const modalTitle = modal.querySelector('h2');
         
-        // Reset form
-        document.getElementById('taskTitle').value = '';
-        document.getElementById('taskDuration').value = '1';
-        document.getElementById('taskType').value = 'project';
+        if (existingTask) {
+            // Fill form with existing task data
+            modalTitle.textContent = 'Taak Bewerken';
+            document.getElementById('taskTitle').value = existingTask.title;
+            document.getElementById('taskDuration').value = existingTask.duration;
+            document.getElementById('taskType').value = existingTask.type || 'project';
+        } else {
+            // Reset form for new task
+            modalTitle.textContent = 'Nieuwe Taak';
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDuration').value = '1';
+            document.getElementById('taskType').value = 'project';
+        }
+        
+        modal.style.display = 'block';
         document.getElementById('taskTitle').focus();
     }
     
     closeTaskModal() {
         document.getElementById('taskModal').style.display = 'none';
         this.selectedCell = null;
+        this.editingTask = null;
     }
     
     saveTask(e) {
         e.preventDefault();
-        
-        if (!this.selectedCell) return;
         
         const title = document.getElementById('taskTitle').value.trim();
         const duration = parseInt(document.getElementById('taskDuration').value);
@@ -469,45 +512,52 @@ class ResourceScheduler {
         
         if (!title) return;
         
-        // Parse the cell date in local time to match user's timezone
-        const [year, month, day] = this.selectedCell.date.split('-').map(Number);
-        const cellDate = this.selectedCell.date;
-        const startDate = new Date(year, month - 1, day);
-        startDate.setHours(0, 0, 0, 0); // Normalize to local midnight
+        if (this.editingTask) {
+            // Update existing task
+            const oldTask = { ...this.editingTask };
+            
+            this.editingTask.title = title;
+            this.editingTask.duration = duration;
+            this.editingTask.type = type;
+            
+            // Recalculate end date based on new duration
+            this.editingTask.end = this.calculateEndDate(this.editingTask.start, duration);
+            
+            // Re-render the task
+            const taskEl = this.container.querySelector(`[data-task-id="${this.editingTask.id}"]`);
+            if (taskEl) taskEl.remove();
+            this.addSingleTask(this.editingTask);
+            
+            this.emit('taskUpdated', { task: this.editingTask, oldTask });
+            
+        } else if (this.selectedCell) {
+            // Create new task
+            const cellDate = this.selectedCell.date;
+            
+            const task = {
+                id: ++this.currentTaskId,
+                title: title,
+                duration: duration,
+                resourceIndex: this.selectedCell.resourceIndex,
+                start: cellDate,
+                end: this.calculateEndDate(cellDate, duration),
+                type: type
+            };
+            
+            this.tasks.push(task);
+            this.addSingleTask(task);
+            this.emit('taskAdded', task);
+        }
         
-        const task = {
-            id: ++this.currentTaskId,
-            title: title,
-            duration: duration,
-            resourceIndex: this.selectedCell.resourceIndex,
-            start: cellDate, // Use cell date directly
-            end: this.calculateEndDate(cellDate, duration),
-            type: type
-        };
-        
-        console.log('💾 SAVE TASK DEBUG:', {
-            clickedCellDate: cellDate,
-            parsedStartDate: task.start,
-            taskStartISO: task.start,
-            matches: (cellDate === task.start),
-            dayIndex: this.selectedCell.dayIndex,
-            detailedFlow: {
-                selectedCellDate: this.selectedCell.date,
-                cellElementDate: cellDate,
-                parsedDate: task.start,
-                finalTaskStart: task.start,
-                currentStartDate: this.dateToYMD(this.currentStartDate)
-            }
-        });
-        
-        this.tasks.push(task);
-        this.addSingleTask(task);
         this.closeTaskModal();
-        
-        this.emit('taskAdded', task);
     }
     
     startDrag(e) {
+        // Don't start drag if clicking on delete button
+        if (e.target.closest('.task-delete-btn')) {
+            return;
+        }
+        
         const taskEl = e.target.closest('.task');
         const task = this.tasks.find(t => t.id == taskEl.dataset.taskId);
         
@@ -767,13 +817,103 @@ class ResourceScheduler {
         this.resizeState = null;
     }
     
+    /**
+     * Handle keyboard events
+     */
+    handleKeyDown(e) {
+        // Don't handle keyboard shortcuts when typing in input fields or when modal is open
+        const isTyping = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
+        const isModalOpen = document.getElementById('taskModal').style.display === 'block';
+        
+        if (isTyping || isModalOpen) {
+            return; // Let the user type normally
+        }
+        
+        // Delete selected task with Delete or Backspace key
+        if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedTask) {
+            e.preventDefault();
+            this.deleteTask(this.selectedTask);
+        }
+        
+        // Escape to deselect
+        if (e.key === 'Escape') {
+            this.selectTask(null);
+        }
+    }
+    
+    /**
+     * Select a task
+     */
+    selectTask(taskId) {
+        // Remove previous selection
+        this.container.querySelectorAll('.task.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
+        this.selectedTask = taskId;
+        
+        if (taskId) {
+            const taskEl = this.container.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskEl) {
+                taskEl.classList.add('selected');
+                this.emit('taskSelected', this.getTask(taskId));
+            }
+        } else {
+            this.emit('taskDeselected');
+        }
+    }
+    
+    /**
+     * Delete a task with confirmation
+     */
+    deleteTask(taskId) {
+        const task = this.getTask(taskId);
+        if (!task) return;
+        
+        // Show confirmation dialog
+        const confirmed = confirm(`Weet je zeker dat je "${task.title}" wilt verwijderen?`);
+        if (!confirmed) return;
+        
+        // If this was the selected task, deselect it
+        if (this.selectedTask === taskId) {
+            this.selectedTask = null;
+        }
+        
+        // Remove the task
+        this.removeTask(taskId);
+    }
+    
+    /**
+     * Edit an existing task
+     */
+    editTask(taskId) {
+        const task = this.getTask(taskId);
+        if (!task) return;
+        
+        this.editingTask = task;
+        this.selectedCell = null; // Clear any selected cell
+        
+        this.openTaskModal(null, task);
+    }
+    
     // Public API Methods
     addTask(task) {
-        task.id = task.id || ++this.currentTaskId;
-        this.tasks.push(task);
-        this.addSingleTask(task);
-        this.emit('taskAdded', task);
-        return task;
+        // Allow custom fields by preserving all properties
+        const newTask = {
+            id: task.id || ++this.currentTaskId,
+            title: task.title || 'Untitled Task',
+            duration: task.duration || 1,
+            resourceIndex: task.resourceIndex || 0,
+            start: task.start,
+            end: task.end || this.calculateEndDate(task.start, task.duration || 1),
+            type: task.type || 'project',
+            ...task // Spread to include any custom fields
+        };
+        
+        this.tasks.push(newTask);
+        this.addSingleTask(newTask);
+        this.emit('taskAdded', newTask);
+        return newTask;
     }
     
     removeTask(taskId) {
@@ -795,7 +935,14 @@ class ResourceScheduler {
         const task = this.tasks.find(t => t.id === taskId);
         if (task) {
             const oldTask = { ...task };
+            
+            // Preserve all existing properties and apply updates
             Object.assign(task, updates);
+            
+            // Recalculate end date if start or duration changed
+            if (updates.start || updates.duration) {
+                task.end = this.calculateEndDate(task.start, task.duration);
+            }
             
             // Re-render the task
             const taskEl = this.container.querySelector(`[data-task-id="${taskId}"]`);
@@ -886,6 +1033,7 @@ class ResourceScheduler {
         // Remove event listeners
         document.removeEventListener('mousemove', this.handleMouseMove);
         document.removeEventListener('mouseup', this.handleMouseUp);
+        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
         
         // Remove scroll listener (always present now)
         this.container.removeEventListener('scroll', this.handleScroll);
@@ -901,6 +1049,8 @@ class ResourceScheduler {
         this.dragState = null;
         this.resizeState = null;
         this.selectedCell = null;
+        this.selectedTask = null;
+        this.editingTask = null;
         this.events = {};
         
         this.emit('destroyed');
@@ -1118,6 +1268,59 @@ class ResourceScheduler {
         });
         
         return true;
+    }
+    
+    handleCellClick(e) {
+        const cell = e.target.closest('.timeline-cell');
+        if (!cell || e.target.closest('.task')) return;
+        
+        const cellData = {
+            resourceIndex: parseInt(cell.dataset.resourceIndex),
+            dayIndex: parseInt(cell.dataset.dayIndex),
+            date: cell.dataset.date,
+            resource: this.resources[parseInt(cell.dataset.resourceIndex)]
+        };
+        
+        // Emit event for external modal systems
+        this.emit('cellClicked', cellData);
+        
+        // Use built-in modal if enabled and action is set to single click
+        if (this.options.useBuiltInModal && this.options.cellClickAction === 'single') {
+            this.openTaskModal(e);
+        }
+    }
+    
+    handleCellDoubleClick(e) {
+        const cell = e.target.closest('.timeline-cell');
+        if (!cell || e.target.closest('.task')) return;
+        
+        const cellData = {
+            resourceIndex: parseInt(cell.dataset.resourceIndex),
+            dayIndex: parseInt(cell.dataset.dayIndex),
+            date: cell.dataset.date,
+            resource: this.resources[parseInt(cell.dataset.resourceIndex)]
+        };
+        
+        // Emit event for external modal systems
+        this.emit('cellDoubleClicked', cellData);
+        
+        // Use built-in modal if enabled and action is set to double click
+        if (this.options.useBuiltInModal && this.options.cellClickAction === 'double') {
+            this.openTaskModal(e);
+        }
+    }
+    
+    handleTaskDoubleClick(taskId) {
+        const task = this.getTask(taskId);
+        if (!task) return;
+        
+        // Emit event for external modal systems
+        this.emit('taskDoubleClicked', task);
+        
+        // Use built-in modal if enabled
+        if (this.options.useBuiltInModal) {
+            this.editTask(taskId);
+        }
     }
 }
 

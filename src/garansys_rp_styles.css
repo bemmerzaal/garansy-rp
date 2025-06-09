@@ -151,7 +151,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 1px;
+    margin-top: 3px;
     height: 44px;
     display: flex;
     align-items: center;
@@ -223,6 +223,43 @@
     margin-left: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.task.selected {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4285f4;
+    z-index: 20;
+}
+
+.task-delete-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: #666;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 15;
+}
+
+.task:hover .task-delete-btn {
+    display: flex;
+}
+
+.task-delete-btn:hover {
+    background: #ff4444;
+    color: white;
+    transform: translateY(-50%) scale(1.1);
 }
 
 /* Modal Styles */

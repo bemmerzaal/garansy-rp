@@ -395,11 +395,13 @@
         
         // Initialize the scheduler
         function initializeScheduler() {
-            // Create scheduler instance
+            // Create scheduler instance with built-in modal enabled
             scheduler = new ResourceScheduler('#scheduler-container', {
                 cellWidth: 80,
                 rowHeight: 50,
                 daysToShow: 20, // 3 weeks initial
+                useBuiltInModal: true, // Use the built-in modal system
+                cellClickAction: 'double', // 'single' or 'double' - when to open modal on empty cell
                 infiniteScroll: true,
                 loadThreshold: 7, // Load more when 7 days left visible
                 bufferDays: 14, // Keep 14 days buffer
@@ -413,7 +415,7 @@
             // Setup event handlers
             setupEventHandlers();
             
-            logEvent('System', 'Scheduler initialized with infinite scroll');
+            logEvent('System', 'Scheduler initialized with built-in modal enabled');
         }
         
         function setupEventHandlers() {
@@ -438,6 +440,19 @@
                 
                 // Here you could delete from database
                 // deleteTaskFromDatabase(task.id);
+            });
+            
+            // New events for external modal integration
+            scheduler.on('cellClicked', (cellData) => {
+                logEvent('Cell Clicked', `Clicked on ${cellData.resource.name} at ${cellData.date} (external apps can show custom modal here)`);
+            });
+            
+            scheduler.on('cellDoubleClicked', (cellData) => {
+                logEvent('Cell Double-Clicked', `Double-clicked on ${cellData.resource.name} at ${cellData.date} (external apps can show custom modal here)`);
+            });
+            
+            scheduler.on('taskDoubleClicked', (task) => {
+                logEvent('Task Double-Clicked', `Double-clicked "${task.title}" (external apps can show custom edit modal here)`);
             });
             
             scheduler.on('dateRangeChanged', (range) => {
@@ -530,7 +545,12 @@
                 resourceIndex: Math.floor(Math.random() * resourcesData.length),
                 start: startDate.toISOString().split('T')[0],
                 type: taskTypes[Math.floor(Math.random() * taskTypes.length)],
-                priority: priorities[Math.floor(Math.random() * priorities.length)]
+                priority: priorities[Math.floor(Math.random() * priorities.length)],
+                // Custom fields for demonstration
+                projectId: Math.floor(Math.random() * 1000),
+                clientId: Math.floor(Math.random() * 100),
+                estimatedHours: Math.floor(Math.random() * 40) + 8,
+                tags: ['urgent', 'important', 'review'][Math.floor(Math.random() * 3)]
             };
             
             // Calculate end date

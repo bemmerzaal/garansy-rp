@@ -98,7 +98,6 @@
 
 .timeline-grid {
     display: grid;
-    grid-template-rows: repeat(auto-fit, 50px);
     width: max-content;
     min-width: fit-content;
 }
@@ -152,7 +151,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    top: 3px;
+    margin-top: 1px;
     height: 44px;
     display: flex;
     align-items: center;

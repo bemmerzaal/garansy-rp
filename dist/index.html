@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResourceScheduler - Clean Separated Version</title>
+    
+    <!-- Include the CSS file -->
+    <link rel="stylesheet" href="css/garansys_rp_styles.min.css">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .demo-header {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .demo-controls button {
+            padding: 8px 16px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .demo-controls button:hover {
+            background: #f8f9fa;
+        }
+        
+        .demo-controls button.primary {
+            background: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+        
+        .demo-controls button.primary:hover {
+            background: #3367d6;
+        }
+        
+        .event-log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #4285f4;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .event-log h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .event-log .log-entry {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            color: #6c757d;
+            margin: 2px 0;
+        }
+        
+        .event-log .log-entry.event-added { color: #28a745; }
+        .event-log .log-entry.event-moved { color: #ffc107; }
+        .event-log .log-entry.event-removed { color: #dc3545; }
+        .event-log .log-entry.event-resize-start { color: #17a2b8; }
+        .event-log .log-entry.event-task-resized { color: #6f42c1; }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>ResourceScheduler - Gescheiden Data & Logica</h1>
+            <p>De scheduler library is nu volledig gescheiden van de data. Exact hetzelfde uiterlijk als de originele versie!</p>
+        </div>
+        
+        <div class="demo-controls">
+            <button onclick="addRandomTask()" class="primary">Voeg Random Taak Toe</button>
+            <button onclick="exportData()">Export Data (JSON)</button>
+            <button onclick="importSampleData()">Laad Sample Data</button>
+            <button onclick="clearAllTasks()">Wis Alle Taken</button>
+            <button onclick="scheduler.goToPreviousWeek()">← Vorige Week</button>
+            <button onclick="scheduler.goToToday()">Vandaag</button>
+            <button onclick="scheduler.goToNextWeek()">Volgende Week →</button>
+            <button onclick="testInfiniteScroll()" class="primary">Test Infinite Scroll</button>
+            <button onclick="showVisibleRange()">Toon Zichtbaar Bereik</button>
+            <button onclick="scrollToFutureDate()">Ga naar Toekomstige Datum</button>
+        </div>
+        
+        <!-- Scheduler Container -->
+        <div id="scheduler-container"></div>
+        
+        <!-- Event Log -->
+        <div class="event-log">
+            <h4>Event Log:</h4>
+            <div id="log-content"></div>
+        </div>
+    </div>
+
+    <!-- Include the library -->
+    <script src="js/garansys_rp_schedular.min.js"></script>
+    
+    <script>
+        /**
+         * Application Data (completely separate from library)
+         */
+        
+        // Sample Resources Data
+        // Sample Resources Data
+        const resourcesData = [
+            { id: 1, name: 'Jan Janssen', department: 'Development', email: 'jan@company.com' },
+            { id: 2, name: 'Kees Keesen', department: 'Design', email: 'kees@company.com' },
+            { id: 3, name: 'Piet Pietersen', department: 'Marketing', email: 'piet@company.com' },
+            { id: 4, name: 'Marie Marieën', department: 'Management', email: 'marie@company.com' },
+            { id: 5, name: 'Lisa van Dijk', department: 'Development', email: 'lisa@company.com' },
+            { id: 6, name: 'Thomas de Boer', department: 'Sales', email: 'thomas@company.com' },
+            { id: 7, name: 'Sophie Bakker', department: 'HR', email: 'sophie@company.com' },
+            { id: 8, name: 'Bart Smit', department: 'Finance', email: 'bart@company.com' },
+            { id: 9, name: 'Emma Visser', department: 'Design', email: 'emma@company.com' },
+            { id: 10, name: 'Rick van der Berg', department: 'Marketing', email: 'rick@company.com' }
+        ];
+
+        // Sample Tasks Data
+        const tasksData = [
+            {
+                id: 1,
+                title: 'Website Redesign',
+                start: '2025-06-09',
+                end: '2025-06-11',
+                duration: 3,
+                resourceIndex: 0,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 2,
+                title: 'Client Meeting',
+                start: '2025-06-12',
+                end: '2025-06-12',
+                duration: 1,
+                resourceIndex: 1,
+                type: 'meeting',
+                priority: 'medium'
+            },
+            {
+                id: 3,
+                title: 'Marketing Campaign',
+                start: '2025-06-10',
+                end: '2025-06-14',
+                duration: 5,
+                resourceIndex: 2,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 4,
+                title: 'Vakantie',
+                start: '2025-06-16',
+                end: '2025-06-20',
+                duration: 5,
+                resourceIndex: 3,
+                type: 'vacation',
+                priority: 'low'
+            },
+            {
+                id: 5,
+                title: 'Database Optimization',
+                start: '2025-06-13',
+                end: '2025-06-17',
+                duration: 5,
+                resourceIndex: 4,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 6,
+                title: 'Sales Presentation',
+                start: '2025-06-18',
+                end: '2025-06-19',
+                duration: 2,
+                resourceIndex: 5,
+                type: 'meeting',
+                priority: 'medium'
+            },
+            {
+                id: 7,
+                title: 'Team Building Event',
+                start: '2025-06-23',
+                end: '2025-06-24',
+                duration: 2,
+                resourceIndex: 6,
+                type: 'event',
+                priority: 'medium'
+            },
+            {
+                id: 8,
+                title: 'Budget Review',
+                start: '2025-06-25',
+                end: '2025-06-26',
+                duration: 2,
+                resourceIndex: 7,
+                type: 'meeting',
+                priority: 'high'
+            },
+            {
+                id: 9,
+                title: 'UI/UX Research',
+                start: '2025-06-27',
+                end: '2025-07-01',
+                duration: 5,
+                resourceIndex: 8,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 10,
+                title: 'Social Media Strategy',
+                start: '2025-06-30',
+                end: '2025-07-04',
+                duration: 5,
+                resourceIndex: 9,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 11,
+                title: 'Mobile App Development',
+                start: '2025-07-07',
+                end: '2025-07-18',
+                duration: 12,
+                resourceIndex: 0,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 12,
+                title: 'Brand Guidelines Update',
+                start: '2025-07-08',
+                end: '2025-07-11',
+                duration: 4,
+                resourceIndex: 1,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 13,
+                title: 'Product Launch Event',
+                start: '2025-07-14',
+                end: '2025-07-15',
+                duration: 2,
+                resourceIndex: 2,
+                type: 'event',
+                priority: 'high'
+            },
+            {
+                id: 14,
+                title: 'Vakantie',
+                start: '2025-07-21',
+                end: '2025-08-01',
+                duration: 12,
+                resourceIndex: 3,
+                type: 'vacation',
+                priority: 'low'
+            },
+            {
+                id: 15,
+                title: 'API Integration',
+                start: '2025-07-22',
+                end: '2025-07-25',
+                duration: 4,
+                resourceIndex: 4,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 16,
+                title: 'Client Onboarding',
+                start: '2025-07-28',
+                end: '2025-07-30',
+                duration: 3,
+                resourceIndex: 5,
+                type: 'meeting',
+                priority: 'medium'
+            },
+            {
+                id: 17,
+                title: 'Performance Reviews',
+                start: '2025-08-04',
+                end: '2025-08-08',
+                duration: 5,
+                resourceIndex: 6,
+                type: 'meeting',
+                priority: 'high'
+            },
+            {
+                id: 18,
+                title: 'Financial Reporting',
+                start: '2025-08-05',
+                end: '2025-08-07',
+                duration: 3,
+                resourceIndex: 7,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 19,
+                title: 'Website Testing',
+                start: '2025-08-11',
+                end: '2025-08-14',
+                duration: 4,
+                resourceIndex: 8,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 20,
+                title: 'Customer Survey',
+                start: '2025-08-12',
+                end: '2025-08-16',
+                duration: 5,
+                resourceIndex: 9,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 21,
+                title: 'Security Audit',
+                start: '2025-08-18',
+                end: '2025-08-22',
+                duration: 5,
+                resourceIndex: 0,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 22,
+                title: 'Design System Update',
+                start: '2025-08-19',
+                end: '2025-08-21',
+                duration: 3,
+                resourceIndex: 1,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 23,
+                title: 'Content Creation Workshop',
+                start: '2025-08-25',
+                end: '2025-08-26',
+                duration: 2,
+                resourceIndex: 2,
+                type: 'event',
+                priority: 'medium'
+            },
+            {
+                id: 24,
+                title: 'Quarterly Planning',
+                start: '2025-08-27',
+                end: '2025-08-29',
+                duration: 3,
+                resourceIndex: 3,
+                type: 'meeting',
+                priority: 'high'
+            }
+        ];
+        
+        /**
+         * Application Logic (your custom implementation)
+         */
+        
+        let scheduler;
+        
+        // Initialize the scheduler
+        function initializeScheduler() {
+            // Create scheduler instance
+            scheduler = new ResourceScheduler('#scheduler-container', {
+                cellWidth: 80,
+                rowHeight: 50,
+                daysToShow: 20, // 3 weeks initial
+                infiniteScroll: true,
+                loadThreshold: 7, // Load more when 7 days left visible
+                bufferDays: 14, // Keep 14 days buffer
+                maxDaysInMemory: 84, // Keep max 84 days (12 weeks)
+                chunkDays: 21 // Load 21 days at a time
+            });
+            
+            // Load your data
+            scheduler.loadData(resourcesData, tasksData);
+            
+            // Setup event handlers
+            setupEventHandlers();
+            
+            logEvent('System', 'Scheduler initialized with infinite scroll');
+        }
+        
+        function setupEventHandlers() {
+            // Task events
+            scheduler.on('taskAdded', (task) => {
+                logEvent('Task Added', `"${task.title}" assigned to ${resourcesData[task.resourceIndex].name} on ${task.start} (${task.duration} days)`);
+                
+                // Here you could save to database
+                // saveTaskToDatabase(task);
+            });
+            
+            scheduler.on('taskMoved', (data) => {
+                const resourceName = resourcesData[data.task.resourceIndex].name;
+                logEvent('Task Moved', `"${data.task.title}" moved to ${resourceName} on ${data.newStart}`);
+                
+                // Here you could update database
+                // updateTaskInDatabase(data.task);
+            });
+            
+            scheduler.on('taskRemoved', (task) => {
+                logEvent('Task Removed', `"${task.title}" was deleted`);
+                
+                // Here you could delete from database
+                // deleteTaskFromDatabase(task.id);
+            });
+            
+            scheduler.on('dateRangeChanged', (range) => {
+                logEvent('Date Range', `Showing ${range.startDate.toLocaleDateString()} - ${range.endDate.toLocaleDateString()}`);
+            });
+            
+            scheduler.on('dragStart', (data) => {
+                logEvent('Drag Start', `Started dragging "${data.task.title}"`);
+            });
+            
+            scheduler.on('resizeStart', (data) => {
+                logEvent('Resize Start', `Started resizing "${data.task.title}" from ${data.handle} handle`);
+            });
+            
+            scheduler.on('taskResized', (data) => {
+                const resourceName = resourcesData[data.task.resourceIndex].name;
+                const durationChange = data.newDuration - data.oldDuration;
+                const durationText = durationChange > 0 ? `+${durationChange}` : `${durationChange}`;
+                logEvent('Task Resized', `"${data.task.title}" resized (${durationText} days) from ${data.handle} handle. New: ${data.newStart} - ${data.newEnd}`);
+                
+                // Here you could update database
+                // updateTaskInDatabase(data.task);
+            });
+            
+            // Infinite scroll events
+            scheduler.on('loadingStart', (data) => {
+                logEvent('Loading Start', `Loading ${data.requestedDays} more days`);
+            });
+            
+            scheduler.on('loadingEnd', (data) => {
+                logEvent('Loading End', `Now showing ${data.totalDays} total days`);
+            });
+            
+            scheduler.on('dateRangeExtended', (data) => {
+                logEvent('Range Extended', `Added ${data.newDays} days. Now until ${data.newEnd.toLocaleDateString()}`);
+                
+                // Here you could load additional tasks for the new date range
+                // loadTasksForDateRange(data.oldEnd, data.newEnd);
+            });
+            
+            scheduler.on('daysCleanedUp', (data) => {
+                logEvent('Memory Cleanup', `Removed ${data.removedDays} old days and ${data.removedTasks} tasks`);
+            });
+            
+            scheduler.on('scrolledToDate', (data) => {
+                logEvent('Scrolled to Date', `Scrolled to ${data.date.toLocaleDateString()}`);
+            });
+            
+            scheduler.on('navigationLimitReached', (data) => {
+                logEvent('Navigation Limit', `Cannot go ${data.direction} - ${data.reason.replace('_', ' ')}`);
+            });
+        }
+        
+        // Utility Functions
+        function logEvent(type, message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toLocaleTimeString();
+            const cssClass = `event-${type.toLowerCase().replace(' ', '-')}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${cssClass}`;
+            logEntry.textContent = `[${timestamp}] ${type}: ${message}`;
+            
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // Keep only last 50 entries
+            if (logContent.children.length > 50) {
+                logContent.removeChild(logContent.firstChild);
+            }
+        }
+        
+        function addRandomTask() {
+            const taskTitles = [
+                'Code Review', 'Testing', 'Documentation', 'Planning Session', 
+                'Research', 'Bug Fixing', 'Feature Development', 'Team Meeting',
+                'Training', 'Client Call', 'Deployment', 'Performance Review'
+            ];
+            
+            const taskTypes = ['project', 'meeting', 'vacation'];
+            const priorities = ['low', 'medium', 'high'];
+            
+            // Generate random start date (next 7 days)
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() + Math.floor(Math.random() * 7));
+            
+            const task = {
+                title: taskTitles[Math.floor(Math.random() * taskTitles.length)],
+                duration: Math.floor(Math.random() * 4) + 1, // 1-4 days
+                resourceIndex: Math.floor(Math.random() * resourcesData.length),
+                start: startDate.toISOString().split('T')[0],
+                type: taskTypes[Math.floor(Math.random() * taskTypes.length)],
+                priority: priorities[Math.floor(Math.random() * priorities.length)]
+            };
+            
+            // Calculate end date
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + task.duration - 1);
+            task.end = endDate.toISOString().split('T')[0];
+            
+            scheduler.addTask(task);
+        }
+        
+        function exportData() {
+            const data = scheduler.getData();
+            const exportData = {
+                resources: resourcesData,
+                tasks: data.tasks,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `scheduler-export-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            logEvent('Export', `Data exported with ${data.tasks.length} tasks`);
+        }
+        
+        function testInfiniteScroll() {
+            const schedulerContainer = document.querySelector('#scheduler-container');
+            if (!schedulerContainer) return;
+            
+            // Scroll to the right edge to trigger loading
+            const maxScroll = schedulerContainer.scrollWidth - schedulerContainer.clientWidth;
+            const targetScroll = maxScroll - 200; // Almost at the end
+            
+            schedulerContainer.scrollLeft = targetScroll;
+            logEvent('Test Scroll', `Scrolled to position ${targetScroll} to test infinite loading`);
+        }
+        
+        function showVisibleRange() {
+            const visibleRange = scheduler.getVisibleDateRange();
+            if (visibleRange) {
+                logEvent('Visible Range', `${visibleRange.start.toLocaleDateString()} - ${visibleRange.end.toLocaleDateString()} (days ${visibleRange.startDay}-${visibleRange.endDay})`);
+            }
+        }
+        
+        function scrollToFutureDate() {
+            // Try to scroll to a date 30 days in the future
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 30);
+            
+            const success = scheduler.scrollToDate(futureDate);
+            if (success) {
+                logEvent('Scroll to Date', `Successfully scrolled to ${futureDate.toLocaleDateString()}`);
+            } else {
+                logEvent('Scroll to Date', `Date ${futureDate.toLocaleDateString()} not in loaded range - triggering load`);
+                // Could trigger loading more days here if needed
+            }
+        }
+        
+        function importSampleData() {
+            // Add some more sample tasks
+            const sampleTasks = [
+                {
+                    title: 'Product Launch',
+                    duration: 3,
+                    resourceIndex: 0,
+                    start: '2025-06-23',
+                    type: 'project',
+                    priority: 'high'
+                },
+                {
+                    title: 'Team Building',
+                    duration: 1,
+                    resourceIndex: 1,
+                    start: '2025-06-25',
+                    type: 'meeting',
+                    priority: 'medium'
+                }
+            ];
+            
+            sampleTasks.forEach(task => {
+                const endDate = new Date(task.start);
+                endDate.setDate(endDate.getDate() + task.duration - 1);
+                task.end = endDate.toISOString().split('T')[0];
+                
+                scheduler.addTask(task);
+            });
+            
+            logEvent('Import', `Added ${sampleTasks.length} sample tasks`);
+        }
+        
+        function clearAllTasks() {
+            const data = scheduler.getData();
+            const taskCount = data.tasks.length;
+            
+            // Remove all tasks
+            data.tasks.forEach(task => {
+                scheduler.removeTask(task.id);
+            });
+            
+            logEvent('Clear', `Removed ${taskCount} tasks`);
+        }
+        
+        // Simulate database operations (you would implement these with real API calls)
+        function saveTaskToDatabase(task) {
+            // Example: 
+            // fetch('/api/tasks', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(task)
+            // });
+            console.log('Would save to database:', task);
+        }
+        
+        function updateTaskInDatabase(task) {
+            // Example:
+            // fetch(`/api/tasks/${task.id}`, {
+            //     method: 'PUT', 
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(task)
+            // });
+            console.log('Would update in database:', task);
+        }
+        
+        function deleteTaskFromDatabase(taskId) {
+            // Example:
+            // fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            console.log('Would delete from database:', taskId);
+        }
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeScheduler);
+        
+        // Make scheduler available globally for demo buttons
+        window.scheduler = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            window.scheduler = scheduler;
+        });
+        
+    </script>
+</body>
+</html>

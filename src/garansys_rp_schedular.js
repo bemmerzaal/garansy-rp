@@ -342,7 +342,7 @@ class ResourceScheduler {
         // Calculate position
         const width = (task.duration || 1) * this.options.cellWidth;
         const left = startDay * this.options.cellWidth;
-        const top = (task.resourceIndex || 0) * this.options.rowHeight;
+        const top = (task.resourceIndex || 0) * (this.options.rowHeight + 1);
         
         taskEl.style.cssText = `
             width: ${width}px;
@@ -586,11 +586,11 @@ class ResourceScheduler {
         const deltaY = e.clientY - this.dragState.startY;
         
         const cellsDeltaX = Math.round(deltaX / this.options.cellWidth);
-        const rowsDeltaY = Math.round(deltaY / this.options.rowHeight);
+        const rowsDeltaY = Math.round(deltaY / (this.options.rowHeight + 1));
         
         // Update visual position
         const newLeft = (this.dragState.originalStartDay + cellsDeltaX) * this.options.cellWidth;
-        const newTop = (this.dragState.originalResourceIndex + rowsDeltaY) * this.options.rowHeight;
+        const newTop = (this.dragState.originalResourceIndex + rowsDeltaY) * (this.options.rowHeight + 1);
         
         this.dragState.element.style.left = newLeft + 'px';
         this.dragState.element.style.top = newTop + 'px';
@@ -675,7 +675,7 @@ class ResourceScheduler {
         const deltaY = e.clientY - this.dragState.startY;
         
         const cellsDeltaX = Math.round(deltaX / this.options.cellWidth);
-        const rowsDeltaY = Math.round(deltaY / this.options.rowHeight);
+        const rowsDeltaY = Math.round(deltaY / (this.options.rowHeight + 1));
         
         // Calculate new values
         const newStartDay = Math.max(0, Math.min(this.options.daysToShow - this.dragState.task.duration, this.dragState.originalStartDay + cellsDeltaX));

@@ -6,7 +6,7 @@
     <title>ResourceScheduler - Clean Separated Version</title>
     
     <!-- Include the CSS file -->
-    <link rel="stylesheet" href="resource-scheduler.css">
+    <link rel="stylesheet" href="garansys_rp_styles.css">
     
     <style>
         body {
@@ -103,6 +103,9 @@
             <button onclick="scheduler.goToPreviousWeek()">← Vorige Week</button>
             <button onclick="scheduler.goToToday()">Vandaag</button>
             <button onclick="scheduler.goToNextWeek()">Volgende Week →</button>
+            <button onclick="testInfiniteScroll()" class="primary">Test Infinite Scroll</button>
+            <button onclick="showVisibleRange()">Toon Zichtbaar Bereik</button>
+            <button onclick="scrollToFutureDate()">Ga naar Toekomstige Datum</button>
         </div>
         
         <!-- Scheduler Container -->
@@ -116,7 +119,7 @@
     </div>
 
     <!-- Include the library -->
-    <script src="scheduler_library_clean.js"></script>
+    <script src="garansys_rp_schedular.js"></script>
     
     <script>
         /**
@@ -187,7 +190,12 @@
             scheduler = new ResourceScheduler('#scheduler-container', {
                 cellWidth: 80,
                 rowHeight: 50,
-                daysToShow: 21 // 3 weeks
+                daysToShow: 21, // 3 weeks initial
+                infiniteScroll: true,
+                loadThreshold: 7, // Load more when 7 days left visible
+                bufferDays: 14, // Keep 14 days buffer
+                maxDaysInMemory: 84, // Keep max 84 days (12 weeks)
+                chunkDays: 21 // Load 21 days at a time
             });
             
             // Load your data
@@ -196,7 +204,7 @@
             // Setup event handlers
             setupEventHandlers();
             
-            logEvent('System', 'Scheduler initialized');
+            logEvent('System', 'Scheduler initialized with infinite scroll');
         }
         
         function setupEventHandlers() {
@@ -229,6 +237,30 @@
             
             scheduler.on('dragStart', (data) => {
                 logEvent('Drag Start', `Started dragging "${data.task.title}"`);
+            });
+            
+            // Infinite scroll events
+            scheduler.on('loadingStart', (data) => {
+                logEvent('Loading Start', `Loading ${data.requestedDays} more days`);
+            });
+            
+            scheduler.on('loadingEnd', (data) => {
+                logEvent('Loading End', `Now showing ${data.totalDays} total days`);
+            });
+            
+            scheduler.on('dateRangeExtended', (data) => {
+                logEvent('Range Extended', `Added ${data.newDays} days. Now until ${data.newEnd.toLocaleDateString()}`);
+                
+                // Here you could load additional tasks for the new date range
+                // loadTasksForDateRange(data.oldEnd, data.newEnd);
+            });
+            
+            scheduler.on('daysCleanedUp', (data) => {
+                logEvent('Memory Cleanup', `Removed ${data.removedDays} old days and ${data.removedTasks} tasks`);
+            });
+            
+            scheduler.on('scrolledToDate', (data) => {
+                logEvent('Scrolled to Date', `Scrolled to ${data.date.toLocaleDateString()}`);
             });
         }
         
@@ -304,6 +336,39 @@
             URL.revokeObjectURL(url);
             
             logEvent('Export', `Data exported with ${data.tasks.length} tasks`);
+        }
+        
+        function testInfiniteScroll() {
+            const timelineArea = document.querySelector('.timeline-area');
+            if (!timelineArea) return;
+            
+            // Scroll to the right edge to trigger loading
+            const maxScroll = timelineArea.scrollWidth - timelineArea.clientWidth;
+            const targetScroll = maxScroll - 200; // Almost at the end
+            
+            timelineArea.scrollLeft = targetScroll;
+            logEvent('Test Scroll', `Scrolled to position ${targetScroll} to test infinite loading`);
+        }
+        
+        function showVisibleRange() {
+            const visibleRange = scheduler.getVisibleDateRange();
+            if (visibleRange) {
+                logEvent('Visible Range', `${visibleRange.start.toLocaleDateString()} - ${visibleRange.end.toLocaleDateString()} (days ${visibleRange.startDay}-${visibleRange.endDay})`);
+            }
+        }
+        
+        function scrollToFutureDate() {
+            // Try to scroll to a date 30 days in the future
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 30);
+            
+            const success = scheduler.scrollToDate(futureDate);
+            if (success) {
+                logEvent('Scroll to Date', `Successfully scrolled to ${futureDate.toLocaleDateString()}`);
+            } else {
+                logEvent('Scroll to Date', `Date ${futureDate.toLocaleDateString()} not in loaded range - triggering load`);
+                // Could trigger loading more days here if needed
+            }
         }
         
         function importSampleData() {

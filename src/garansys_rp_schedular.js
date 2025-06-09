@@ -29,6 +29,7 @@ class ResourceScheduler {
         this.tasks = [];
         this.currentTaskId = 0;
         this.dragState = null;
+        this.resizeState = null;
         this.selectedCell = null;
         this.events = {};
         
@@ -469,7 +470,18 @@ class ResourceScheduler {
         
         if (!task) return;
         
-        // Use current DOM position as starting point - NO corrections
+        // Check if click is on resize handles
+        const rect = taskEl.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const isLeftHandle = clickX <= 8;
+        const isRightHandle = clickX >= rect.width - 8;
+        
+        if (isLeftHandle || isRightHandle) {
+            this.startResize(e, taskEl, task, isLeftHandle ? 'left' : 'right');
+            return;
+        }
+        
+        // Regular drag logic
         const currentLeft = parseInt(taskEl.style.left) || 0;
         const currentStartDay = Math.round(currentLeft / this.options.cellWidth);
         
@@ -496,7 +508,35 @@ class ResourceScheduler {
         this.emit('dragStart', { task, element: taskEl });
     }
     
+    startResize(e, taskEl, task, handle) {
+        const currentLeft = parseInt(taskEl.style.left) || 0;
+        const currentWidth = parseInt(taskEl.style.width) || 0;
+        const currentStartDay = Math.round(currentLeft / this.options.cellWidth);
+        const currentDuration = Math.round(currentWidth / this.options.cellWidth);
+        
+        this.resizeState = {
+            task: task,
+            element: taskEl,
+            handle: handle,
+            startX: e.clientX,
+            originalStartDay: currentStartDay,
+            originalDuration: currentDuration,
+            originalLeft: currentLeft,
+            originalWidth: currentWidth
+        };
+        
+        taskEl.classList.add('resizing');
+        e.preventDefault();
+        
+        this.emit('resizeStart', { task, handle, element: taskEl });
+    }
+    
     handleMouseMove(e) {
+        if (this.resizeState) {
+            this.handleResizeMove(e);
+            return;
+        }
+        
         if (!this.dragState) return;
         
         const deltaX = e.clientX - this.dragState.startX;
@@ -534,7 +574,58 @@ class ResourceScheduler {
         });
     }
     
+    handleResizeMove(e) {
+        const deltaX = e.clientX - this.resizeState.startX;
+        const cellsDelta = Math.round(deltaX / this.options.cellWidth);
+        
+        let newLeft = this.resizeState.originalLeft;
+        let newWidth = this.resizeState.originalWidth;
+        let newStartDay = this.resizeState.originalStartDay;
+        let newDuration = this.resizeState.originalDuration;
+        
+        if (this.resizeState.handle === 'left') {
+            // Resize from left - change start position and duration
+            const maxLeftMove = this.resizeState.originalDuration - 1; // Keep at least 1 day
+            const actualDelta = Math.max(-maxLeftMove, Math.min(cellsDelta, this.resizeState.originalStartDay));
+            
+            newLeft = this.resizeState.originalLeft + (actualDelta * this.options.cellWidth);
+            newWidth = this.resizeState.originalWidth - (actualDelta * this.options.cellWidth);
+            newStartDay = this.resizeState.originalStartDay + actualDelta;
+            newDuration = this.resizeState.originalDuration - actualDelta;
+        } else {
+            // Resize from right - change duration only
+            const maxRightMove = this.options.daysToShow - this.resizeState.originalStartDay - 1;
+            const actualDelta = Math.max(-(this.resizeState.originalDuration - 1), Math.min(cellsDelta, maxRightMove));
+            
+            newWidth = this.resizeState.originalWidth + (actualDelta * this.options.cellWidth);
+            newDuration = this.resizeState.originalDuration + actualDelta;
+        }
+        
+        // Ensure minimum size
+        if (newDuration < 1) {
+            newDuration = 1;
+            if (this.resizeState.handle === 'left') {
+                newStartDay = this.resizeState.originalStartDay + this.resizeState.originalDuration - 1;
+                newLeft = newStartDay * this.options.cellWidth;
+            }
+            newWidth = this.options.cellWidth;
+        }
+        
+        // Update visual
+        this.resizeState.element.style.left = newLeft + 'px';
+        this.resizeState.element.style.width = newWidth + 'px';
+        
+        // Store current values for mouse up
+        this.resizeState.currentStartDay = newStartDay;
+        this.resizeState.currentDuration = newDuration;
+    }
+    
     handleMouseUp(e) {
+        if (this.resizeState) {
+            this.handleResizeEnd(e);
+            return;
+        }
+        
         if (!this.dragState) return;
         
         const deltaX = e.clientX - this.dragState.startX;
@@ -581,6 +672,57 @@ class ResourceScheduler {
         });
         
         this.dragState = null;
+    }
+    
+    handleResizeEnd(e) {
+        const task = this.resizeState.task;
+        const element = this.resizeState.element;
+        const handle = this.resizeState.handle;
+        const oldStart = task.start;
+        const oldEnd = task.end;
+        const oldDuration = task.duration;
+        
+        // Calculate new dates
+        const newStartDay = this.resizeState.currentStartDay || this.resizeState.originalStartDay;
+        const newDuration = this.resizeState.currentDuration || this.resizeState.originalDuration;
+        
+        const newStartDate = new Date(this.currentStartDate);
+        newStartDate.setDate(newStartDate.getDate() + newStartDay);
+        
+        const newEndDate = new Date(newStartDate);
+        newEndDate.setDate(newStartDate.getDate() + newDuration - 1);
+        
+        // Update task data
+        task.start = newStartDate.toISOString().split('T')[0];
+        task.end = newEndDate.toISOString().split('T')[0];
+        task.duration = newDuration;
+        
+        console.log('Updated task after resize:', {
+            id: task.id,
+            handle: handle,
+            oldStart: oldStart,
+            oldEnd: oldEnd,
+            oldDuration: oldDuration,
+            newStart: task.start,
+            newEnd: task.end,
+            newDuration: task.duration
+        });
+        
+        // Clean up
+        element.classList.remove('resizing');
+        
+        this.emit('taskResized', {
+            task: task,
+            handle: handle,
+            oldStart: oldStart,
+            oldEnd: oldEnd,
+            oldDuration: oldDuration,
+            newStart: task.start,
+            newEnd: task.end,
+            newDuration: task.duration
+        });
+        
+        this.resizeState = null;
     }
     
     // Public API Methods
@@ -715,6 +857,7 @@ class ResourceScheduler {
         
         // Clear state
         this.dragState = null;
+        this.resizeState = null;
         this.selectedCell = null;
         this.events = {};
         

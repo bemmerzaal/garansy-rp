@@ -230,9 +230,10 @@ class ResourceScheduler {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
+        console.log('🗓️ HEADER DEBUG - currentStartDate:', this.currentStartDate.toISOString().split('T')[0]);
+        
         for (let i = 0; i < this.options.daysToShow; i++) {
-            const date = new Date(this.currentStartDate);
-            date.setDate(date.getDate() + i);
+            const date = new Date(this.currentStartDate.getTime() + (i * 24 * 60 * 60 * 1000));
             
             const dayEl = document.createElement('div');
             dayEl.className = 'day-column';
@@ -247,10 +248,13 @@ class ResourceScheduler {
                 dayEl.classList.add('today');
             }
             
+            const displayDate = `${date.getDate()}/${date.getMonth() + 1}`;
             dayEl.innerHTML = `
                 <div class="day-name">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
-                <div class="day-date">${date.getDate()}/${date.getMonth() + 1}</div>
+                <div class="day-date">${displayDate}</div>
             `;
+            
+            console.log(`🗓️ HEADER[${i}]: Visual="${displayDate}", ISO="${date.toISOString().split('T')[0]}"`);
             
             daysHeader.appendChild(dayEl);
         }
@@ -273,14 +277,15 @@ class ResourceScheduler {
         const timelineGrid = this.container.querySelector('.timeline-grid');
         timelineGrid.innerHTML = '';
         
+        console.log('🔲 TIMELINE DEBUG - currentStartDate:', this.currentStartDate.toISOString().split('T')[0]);
+        
         this.resources.forEach((resource, resourceIndex) => {
             const rowEl = document.createElement('div');
             rowEl.className = 'timeline-row';
             rowEl.dataset.resourceIndex = resourceIndex;
             
             for (let dayIndex = 0; dayIndex < this.options.daysToShow; dayIndex++) {
-                const date = new Date(this.currentStartDate);
-                date.setDate(date.getDate() + dayIndex);
+                const date = new Date(this.currentStartDate.getTime() + (dayIndex * 24 * 60 * 60 * 1000));
                 
                 const cellEl = document.createElement('div');
                 cellEl.className = 'timeline-cell';
@@ -298,6 +303,10 @@ class ResourceScheduler {
                 today.setHours(0, 0, 0, 0);
                 if (date.getTime() === today.getTime()) {
                     cellEl.classList.add('today');
+                }
+                
+                if (resourceIndex === 0) { // Only log first row to avoid spam
+                    console.log(`🔲 CELL[${dayIndex}]: dataset.date="${cellEl.dataset.date}", ISO="${date.toISOString().split('T')[0]}"`);
                 }
                 
                 cellEl.addEventListener('click', (e) => this.openTaskModal(e));
@@ -364,16 +373,18 @@ class ResourceScheduler {
     }
     
     getTaskStartDayIndex(task) {
-        const [year, month, day] = task.start.split('-').map(Number);
-        const taskDate = new Date(year, month - 1, day); // Remove the extra -1 day subtraction
-        const diffTime = taskDate.getTime() - this.currentStartDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Use ISO string parsing to avoid timezone issues completely
+        const taskDate = new Date(task.start + 'T00:00:00');
+        const startDate = new Date(this.currentStartDate.toISOString().split('T')[0] + 'T00:00:00');
         
-        console.log('getTaskStartDayIndex (FIXED):', {
+        const diffTime = taskDate.getTime() - startDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        
+        console.log('getTaskStartDayIndex (ISO PARSING FIXED):', {
             taskId: task.id,
             taskStart: task.start,
             taskDate: taskDate.toISOString().split('T')[0],
-            currentStartDate: this.currentStartDate.toISOString().split('T')[0],
+            currentStartDate: startDate.toISOString().split('T')[0],
             diffTime: diffTime,
             diffDays: diffDays
         });
@@ -390,6 +401,12 @@ class ResourceScheduler {
         return d;
     }
     
+    calculateEndDate(startDateString, duration) {
+        const startDate = new Date(startDateString + 'T00:00:00');
+        const endDate = new Date(startDate.getTime() + ((duration - 1) * 24 * 60 * 60 * 1000));
+        return endDate.toISOString().split('T')[0];
+    }
+    
     openTaskModal(e) {
         const cell = e.target.closest('.timeline-cell');
         if (!cell || e.target.closest('.task')) return;
@@ -400,7 +417,11 @@ class ResourceScheduler {
             date: cell.dataset.date
         };
         
-        console.log('Opening modal for cell:', this.selectedCell);
+        console.log('🖱️ CELL CLICKED:', {
+            dayIndex: this.selectedCell.dayIndex,
+            cellDate: this.selectedCell.date,
+            resourceIndex: this.selectedCell.resourceIndex
+        });
         
         const modal = document.getElementById('taskModal');
         modal.style.display = 'block';
@@ -428,33 +449,32 @@ class ResourceScheduler {
         
         if (!title) return;
         
-        // Parse cell date exact same way as getTaskStartDayIndex
-        const cellElement = document.querySelector(`[data-resource-index="${this.selectedCell.resourceIndex}"][data-day-index="${this.selectedCell.dayIndex}"]`);
-        const cellDate = cellElement.dataset.date;
-        
-        const [year, month, day] = cellDate.split('-').map(Number);
-        const startDate = new Date(year, month - 1, day); // Month is 0-based
-        
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + duration - 1);
+        // Use the cell date directly without any parsing to avoid timezone issues
+        const cellDate = this.selectedCell.date;
         
         const task = {
             id: ++this.currentTaskId,
             title: title,
             duration: duration,
             resourceIndex: this.selectedCell.resourceIndex,
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0],
+            start: cellDate, // Use cell date directly
+            end: this.calculateEndDate(cellDate, duration),
             type: type
         };
         
-        console.log('Saving new task (DOUBLE FIXED):', {
-            task: task,
-            selectedCell: this.selectedCell,
-            cellDate: cellDate,
-            startDateCalculated: startDate.toISOString().split('T')[0],
-            shouldMatch: cellDate,
-            matches: (startDate.toISOString().split('T')[0] === cellDate)
+        console.log('💾 SAVE TASK DEBUG:', {
+            clickedCellDate: cellDate,
+            parsedStartDate: task.start,
+            taskStartISO: task.start,
+            matches: (cellDate === task.start),
+            dayIndex: this.selectedCell.dayIndex,
+            detailedFlow: {
+                selectedCellDate: this.selectedCell.date,
+                cellElementDate: cellDate,
+                parsedDate: task.start,
+                finalTaskStart: task.start,
+                currentStartDate: this.currentStartDate.toISOString().split('T')[0]
+            }
         });
         
         this.tasks.push(task);
@@ -638,12 +658,10 @@ class ResourceScheduler {
         const newStartDay = Math.max(0, Math.min(this.options.daysToShow - this.dragState.task.duration, this.dragState.originalStartDay + cellsDeltaX));
         const newResourceIndex = Math.max(0, Math.min(this.resources.length - 1, this.dragState.originalResourceIndex + rowsDeltaY));
         
-        // Calculate new dates
-        const newStartDate = new Date(this.currentStartDate);
-        newStartDate.setDate(newStartDate.getDate() + newStartDay);
+        // Calculate new dates using more reliable millisecond addition
+        const newStartDate = new Date(this.currentStartDate.getTime() + (newStartDay * 24 * 60 * 60 * 1000));
         
-        const newEndDate = new Date(newStartDate);
-        newEndDate.setDate(newStartDate.getDate() + this.dragState.task.duration - 1);
+        const newEndDate = new Date(newStartDate.getTime() + ((this.dragState.task.duration - 1) * 24 * 60 * 60 * 1000));
         
         // Update task data
         const oldStart = this.dragState.task.start;
@@ -651,13 +669,16 @@ class ResourceScheduler {
         this.dragState.task.end = newEndDate.toISOString().split('T')[0];
         this.dragState.task.resourceIndex = newResourceIndex;
         
-        console.log('Updated task after drag:', {
-            id: this.dragState.task.id,
+        console.log('🏃 DRAG COMPLETE DEBUG:', {
+            taskId: this.dragState.task.id,
             oldStart: oldStart,
-            newStart: this.dragState.task.start,
-            newEnd: this.dragState.task.end,
-            duration: this.dragState.task.duration,
-            resourceIndex: newResourceIndex
+            newStartDay: newStartDay,
+            currentStartDate: this.currentStartDate.toISOString().split('T')[0],
+            calculatedNewStart: newStartDate.toISOString().split('T')[0],
+            finalTaskStart: this.dragState.task.start,
+            visualPosition: `left: ${this.dragState.element.style.left}, which is day ${Math.round(parseInt(this.dragState.element.style.left) / this.options.cellWidth)}`,
+            debugManualCalc: `Day ${newStartDay} from ${this.currentStartDate.toISOString().split('T')[0]} should be: ${new Date(new Date(this.currentStartDate).getTime() + (newStartDay * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]}`,
+            actualNewStartDate: newStartDate.toString()
         });
         
         // Clean up
@@ -686,11 +707,9 @@ class ResourceScheduler {
         const newStartDay = this.resizeState.currentStartDay || this.resizeState.originalStartDay;
         const newDuration = this.resizeState.currentDuration || this.resizeState.originalDuration;
         
-        const newStartDate = new Date(this.currentStartDate);
-        newStartDate.setDate(newStartDate.getDate() + newStartDay);
+        const newStartDate = new Date(this.currentStartDate.getTime() + (newStartDay * 24 * 60 * 60 * 1000));
         
-        const newEndDate = new Date(newStartDate);
-        newEndDate.setDate(newStartDate.getDate() + newDuration - 1);
+        const newEndDate = new Date(newStartDate.getTime() + ((newDuration - 1) * 24 * 60 * 60 * 1000));
         
         // Update task data
         task.start = newStartDate.toISOString().split('T')[0];

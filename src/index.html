@@ -129,13 +129,20 @@
          */
         
         // Sample Resources Data
+        // Sample Resources Data
         const resourcesData = [
             { id: 1, name: 'Jan Janssen', department: 'Development', email: 'jan@company.com' },
             { id: 2, name: 'Kees Keesen', department: 'Design', email: 'kees@company.com' },
             { id: 3, name: 'Piet Pietersen', department: 'Marketing', email: 'piet@company.com' },
-            { id: 4, name: 'Marie Marieën', department: 'Management', email: 'marie@company.com' }
+            { id: 4, name: 'Marie Marieën', department: 'Management', email: 'marie@company.com' },
+            { id: 5, name: 'Lisa van Dijk', department: 'Development', email: 'lisa@company.com' },
+            { id: 6, name: 'Thomas de Boer', department: 'Sales', email: 'thomas@company.com' },
+            { id: 7, name: 'Sophie Bakker', department: 'HR', email: 'sophie@company.com' },
+            { id: 8, name: 'Bart Smit', department: 'Finance', email: 'bart@company.com' },
+            { id: 9, name: 'Emma Visser', department: 'Design', email: 'emma@company.com' },
+            { id: 10, name: 'Rick van der Berg', department: 'Marketing', email: 'rick@company.com' }
         ];
-        
+
         // Sample Tasks Data
         const tasksData = [
             {
@@ -177,6 +184,206 @@
                 resourceIndex: 3,
                 type: 'vacation',
                 priority: 'low'
+            },
+            {
+                id: 5,
+                title: 'Database Optimization',
+                start: '2025-06-13',
+                end: '2025-06-17',
+                duration: 5,
+                resourceIndex: 4,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 6,
+                title: 'Sales Presentation',
+                start: '2025-06-18',
+                end: '2025-06-19',
+                duration: 2,
+                resourceIndex: 5,
+                type: 'meeting',
+                priority: 'medium'
+            },
+            {
+                id: 7,
+                title: 'Team Building Event',
+                start: '2025-06-23',
+                end: '2025-06-24',
+                duration: 2,
+                resourceIndex: 6,
+                type: 'event',
+                priority: 'medium'
+            },
+            {
+                id: 8,
+                title: 'Budget Review',
+                start: '2025-06-25',
+                end: '2025-06-26',
+                duration: 2,
+                resourceIndex: 7,
+                type: 'meeting',
+                priority: 'high'
+            },
+            {
+                id: 9,
+                title: 'UI/UX Research',
+                start: '2025-06-27',
+                end: '2025-07-01',
+                duration: 5,
+                resourceIndex: 8,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 10,
+                title: 'Social Media Strategy',
+                start: '2025-06-30',
+                end: '2025-07-04',
+                duration: 5,
+                resourceIndex: 9,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 11,
+                title: 'Mobile App Development',
+                start: '2025-07-07',
+                end: '2025-07-18',
+                duration: 12,
+                resourceIndex: 0,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 12,
+                title: 'Brand Guidelines Update',
+                start: '2025-07-08',
+                end: '2025-07-11',
+                duration: 4,
+                resourceIndex: 1,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 13,
+                title: 'Product Launch Event',
+                start: '2025-07-14',
+                end: '2025-07-15',
+                duration: 2,
+                resourceIndex: 2,
+                type: 'event',
+                priority: 'high'
+            },
+            {
+                id: 14,
+                title: 'Vakantie',
+                start: '2025-07-21',
+                end: '2025-08-01',
+                duration: 12,
+                resourceIndex: 3,
+                type: 'vacation',
+                priority: 'low'
+            },
+            {
+                id: 15,
+                title: 'API Integration',
+                start: '2025-07-22',
+                end: '2025-07-25',
+                duration: 4,
+                resourceIndex: 4,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 16,
+                title: 'Client Onboarding',
+                start: '2025-07-28',
+                end: '2025-07-30',
+                duration: 3,
+                resourceIndex: 5,
+                type: 'meeting',
+                priority: 'medium'
+            },
+            {
+                id: 17,
+                title: 'Performance Reviews',
+                start: '2025-08-04',
+                end: '2025-08-08',
+                duration: 5,
+                resourceIndex: 6,
+                type: 'meeting',
+                priority: 'high'
+            },
+            {
+                id: 18,
+                title: 'Financial Reporting',
+                start: '2025-08-05',
+                end: '2025-08-07',
+                duration: 3,
+                resourceIndex: 7,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 19,
+                title: 'Website Testing',
+                start: '2025-08-11',
+                end: '2025-08-14',
+                duration: 4,
+                resourceIndex: 8,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 20,
+                title: 'Customer Survey',
+                start: '2025-08-12',
+                end: '2025-08-16',
+                duration: 5,
+                resourceIndex: 9,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 21,
+                title: 'Security Audit',
+                start: '2025-08-18',
+                end: '2025-08-22',
+                duration: 5,
+                resourceIndex: 0,
+                type: 'project',
+                priority: 'high'
+            },
+            {
+                id: 22,
+                title: 'Design System Update',
+                start: '2025-08-19',
+                end: '2025-08-21',
+                duration: 3,
+                resourceIndex: 1,
+                type: 'project',
+                priority: 'medium'
+            },
+            {
+                id: 23,
+                title: 'Content Creation Workshop',
+                start: '2025-08-25',
+                end: '2025-08-26',
+                duration: 2,
+                resourceIndex: 2,
+                type: 'event',
+                priority: 'medium'
+            },
+            {
+                id: 24,
+                title: 'Quarterly Planning',
+                start: '2025-08-27',
+                end: '2025-08-29',
+                duration: 3,
+                resourceIndex: 3,
+                type: 'meeting',
+                priority: 'high'
             }
         ];
         
@@ -212,7 +419,7 @@
         function setupEventHandlers() {
             // Task events
             scheduler.on('taskAdded', (task) => {
-                logEvent('Task Added', `"${task.title}" assigned to ${resourcesData[task.resourceIndex].name}`);
+                logEvent('Task Added', `"${task.title}" assigned to ${resourcesData[task.resourceIndex].name} on ${task.start} (${task.duration} days)`);
                 
                 // Here you could save to database
                 // saveTaskToDatabase(task);

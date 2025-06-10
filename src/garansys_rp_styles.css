@@ -255,8 +255,8 @@
 }
 
 .grp-task-delete-btn:hover {
-    background: #fff;
-    color: #dc3545;
+    background: #dc3545;
+    color: white;
 }
 
 .grp-modal {

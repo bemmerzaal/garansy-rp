@@ -222,42 +222,6 @@ class ResourceScheduler {
                         </div>
                     </div>
                 </div>
-                
-                ${this.options.useBuiltInModal ? `
-                <!-- Task Modal -->
-                <div id="taskModal" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <span class="close">&times;</span>
-                            <h2>Nieuwe Taak</h2>
-                        </div>
-                        <form id="taskForm">
-                            <div class="modal-body">
-                                <div class="form-group">
-                                    <label for="taskTitle">Titel:</label>
-                                    <input type="text" id="taskTitle" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="taskDuration">Duur (dagen):</label>
-                                    <input type="number" id="taskDuration" value="1" min="1" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="taskType">Type:</label>
-                                    <select id="taskType">
-                                        <option value="project">Project</option>
-                                        <option value="meeting">Meeting</option>
-                                        <option value="vacation">Vakantie</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" onclick="scheduler.closeTaskModal()">Annuleren</button>
-                                <button type="submit" class="btn btn-primary">Opslaan</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                ` : ''}
             `;
         } catch (error) {
             console.error('Error creating HTML:', error);
@@ -270,6 +234,49 @@ class ResourceScheduler {
         try {
             // Modal events (only if using built-in modal)
             if (this.options.useBuiltInModal) {
+                // Remove any old modal from previous initializations
+                const oldModal = document.getElementById('taskModal');
+                if (oldModal) {
+                    oldModal.remove();
+                }
+                
+                // Create modal HTML and append to the body
+                const modalHTML = `
+                    <div id="taskModal" class="modal">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <span class="close">&times;</span>
+                                <h2>Nieuwe Taak</h2>
+                            </div>
+                            <form id="taskForm">
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label for="taskTitle">Titel:</label>
+                                        <input type="text" id="taskTitle" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="taskDuration">Duur (dagen):</label>
+                                        <input type="number" id="taskDuration" value="1" min="1" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="taskType">Type:</label>
+                                        <select id="taskType">
+                                            <option value="project">Project</option>
+                                            <option value="meeting">Meeting</option>
+                                            <option value="vacation">Vakantie</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" onclick="scheduler.closeTaskModal()">Annuleren</button>
+                                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                
                 const modal = document.getElementById('taskModal');
                 const closeBtn = modal ? modal.querySelector('.close') : null;
                 const form = document.getElementById('taskForm');

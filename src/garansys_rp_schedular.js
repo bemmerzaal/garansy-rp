@@ -207,18 +207,18 @@ class ResourceScheduler {
     createHTML() {
         try {
             this.container.innerHTML = `
-                <div class="scheduler-container">
-                    <div class="scheduler-header">
-                        <div class="resource-header">Resources</div>
-                        <div class="days-header-container">
-                            <div class="days-header"></div>
+                <div class="grp-scheduler-container">
+                    <div class="grp-scheduler-header">
+                        <div class="grp-resource-header">Resources</div>
+                        <div class="grp-days-header-container">
+                            <div class="grp-days-header"></div>
                         </div>
                     </div>
-                    <div class="scheduler-content">
-                        <div class="resources-column"></div>
-                        <div class="timeline-area">
-                            <div class="timeline-grid"></div>
-                            ${this.options.infiniteScroll ? '<div class="loading-indicator" style="display: none;">Loading more dates...</div>' : ''}
+                    <div class="grp-scheduler-content">
+                        <div class="grp-resources-column"></div>
+                        <div class="grp-timeline-area">
+                            <div class="grp-timeline-grid"></div>
+                            ${this.options.infiniteScroll ? '<div class="grp-loading-indicator" style="display: none;">Loading more dates...</div>' : ''}
                         </div>
                     </div>
                 </div>
@@ -242,24 +242,32 @@ class ResourceScheduler {
                 
                 // Create modal HTML and append to the body
                 const modalHTML = `
-                    <div id="taskModal" class="modal">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <span class="close">&times;</span>
+                    <div id="taskModal" class="grp-modal">
+                        <div class="grp-modal-content">
+                            <div class="grp-modal-header">
+                                <span class="grp-close">&times;</span>
                                 <h2>Nieuwe Taak</h2>
                             </div>
                             <form id="taskForm">
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label for="taskTitle">Titel:</label>
+                                <div class="grp-modal-body">
+                                    <div class="grp-form-group">
+                                        <label for="taskTitle">Titel</label>
                                         <input type="text" id="taskTitle" required>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="taskDuration">Duur (dagen):</label>
-                                        <input type="number" id="taskDuration" value="1" min="1" required>
+                                    <div class="grp-form-group">
+                                        <label for="taskStart">Start Datum</label>
+                                        <input type="date" id="taskStart" required>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="taskType">Type:</label>
+                                    <div class="grp-form-group">
+                                        <label for="taskDuration">Duur (dagen)</label>
+                                        <input type="number" id="taskDuration" min="1" value="1" required>
+                                    </div>
+                                    <div class="grp-form-group">
+                                        <label for="taskResource">Resource</label>
+                                        <select id="taskResource" required></select>
+                                    </div>
+                                    <div class="grp-form-group">
+                                        <label for="taskType">Type</label>
                                         <select id="taskType">
                                             <option value="project">Project</option>
                                             <option value="meeting">Meeting</option>
@@ -267,9 +275,9 @@ class ResourceScheduler {
                                         </select>
                                     </div>
                                 </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" onclick="scheduler.closeTaskModal()">Annuleren</button>
-                                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                                <div class="grp-modal-footer">
+                                    <button type="button" class="grp-btn grp-btn-secondary" onclick="this.closest('.grp-modal').style.display='none'">Annuleren</button>
+                                    <button type="submit" class="grp-btn grp-btn-primary">Opslaan</button>
                                 </div>
                             </form>
                         </div>
@@ -278,7 +286,7 @@ class ResourceScheduler {
                 document.body.insertAdjacentHTML('beforeend', modalHTML);
                 
                 const modal = document.getElementById('taskModal');
-                const closeBtn = modal ? modal.querySelector('.close') : null;
+                const closeBtn = modal ? modal.querySelector('.grp-close') : null;
                 const form = document.getElementById('taskForm');
                 
                 if (closeBtn) {
@@ -305,7 +313,7 @@ class ResourceScheduler {
             this.syncScroll();
             
             // Always add scroll listener to timeline-area like the working example
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             console.log('🔧 Adding scroll listener to timeline-area:', timelineArea);
             if (timelineArea) {
                 timelineArea.addEventListener('scroll', this.handleScroll, { passive: true });
@@ -333,8 +341,8 @@ class ResourceScheduler {
      */
     syncScroll() {
         try {
-            const daysHeaderContainer = this.container.querySelector('.days-header-container');
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const daysHeaderContainer = this.container.querySelector('.grp-days-header-container');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             
             console.log('🔗 Setting up scroll sync between:', { daysHeaderContainer, timelineArea });
             
@@ -368,7 +376,7 @@ class ResourceScheduler {
     
     renderDaysHeader() {
         try {
-            const daysHeader = this.container.querySelector('.days-header');
+            const daysHeader = this.container.querySelector('.grp-days-header');
             if (!daysHeader) {
                 throw new Error('Days header element not found');
             }
@@ -384,24 +392,24 @@ class ResourceScheduler {
                 const date = new Date(this.currentStartDate.getTime() + (i * 24 * 60 * 60 * 1000));
                 
                 const dayEl = document.createElement('div');
-                dayEl.className = 'day-column';
+                dayEl.className = 'grp-day-column';
                 
                 // Add weekend class
                 if (date.getDay() === 0 || date.getDay() === 6) {
-                    dayEl.classList.add('weekend');
+                    dayEl.classList.add('grp-weekend');
                 }
                 
                 // Add today class
                 if (date.getTime() === today.getTime()) {
-                    dayEl.classList.add('today');
+                    dayEl.classList.add('grp-today');
                 }
                 
                 const isoDate = this.dateToYMD(date);
                 const displayDate = `${date.getDate()}/${date.getMonth() + 1}`;
                 
                 dayEl.innerHTML = `
-                    <div class="day-name">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
-                    <div class="day-date">${displayDate}</div>
+                    <div class="grp-day-name">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
+                    <div class="grp-day-date">${displayDate}</div>
                 `;
                 
                 console.log(`🗓️ HEADER[${i}]: Visual="${displayDate}", ISO="${isoDate}", DateObject="${date.toString()}", getDate="${date.getDate()}", getMonth="${date.getMonth() + 1}"`);
@@ -416,7 +424,7 @@ class ResourceScheduler {
     
     renderResources() {
         try {
-            const resourcesColumn = this.container.querySelector('.resources-column');
+            const resourcesColumn = this.container.querySelector('.grp-resources-column');
             if (!resourcesColumn) {
                 throw new Error('Resources column element not found');
             }
@@ -430,7 +438,7 @@ class ResourceScheduler {
                 }
                 
                 const resourceEl = document.createElement('div');
-                resourceEl.className = 'resource-row';
+                resourceEl.className = 'grp-resource-row';
                 resourceEl.dataset.resourceIndex = index;
                 resourceEl.textContent = resource.name;
                 resourcesColumn.appendChild(resourceEl);
@@ -443,7 +451,7 @@ class ResourceScheduler {
     
     renderTimeline() {
         try {
-            const timelineGrid = this.container.querySelector('.timeline-grid');
+            const timelineGrid = this.container.querySelector('.grp-timeline-grid');
             if (!timelineGrid) {
                 throw new Error('Timeline grid element not found');
             }
@@ -454,28 +462,28 @@ class ResourceScheduler {
             
             this.resources.forEach((resource, resourceIndex) => {
                 const rowEl = document.createElement('div');
-                rowEl.className = 'timeline-row';
+                rowEl.className = 'grp-timeline-row';
                 rowEl.dataset.resourceIndex = resourceIndex;
                 
                 for (let dayIndex = 0; dayIndex < this.options.daysToShow; dayIndex++) {
                     const date = new Date(this.currentStartDate.getTime() + (dayIndex * 24 * 60 * 60 * 1000));
                     
                     const cellEl = document.createElement('div');
-                    cellEl.className = 'timeline-cell';
+                    cellEl.className = 'grp-timeline-cell';
                     cellEl.dataset.resourceIndex = resourceIndex;
                     cellEl.dataset.dayIndex = dayIndex;
                     cellEl.dataset.date = this.dateToYMD(date);
                     
                     // Add weekend class
                     if (date.getDay() === 0 || date.getDay() === 6) {
-                        cellEl.classList.add('weekend');
+                        cellEl.classList.add('grp-weekend');
                     }
                     
                     // Add today class
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     if (date.getTime() === today.getTime()) {
-                        cellEl.classList.add('today');
+                        cellEl.classList.add('grp-today');
                     }
                     
                     if (resourceIndex === 0) { // Only log first row to avoid spam
@@ -498,7 +506,7 @@ class ResourceScheduler {
     renderTasks() {
         try {
             // Remove existing task elements
-            this.container.querySelectorAll('.task').forEach(el => el.remove());
+            this.container.querySelectorAll('.grp-task').forEach(el => el.remove());
             
             // Add all tasks
             this.tasks.forEach(task => {
@@ -526,11 +534,11 @@ class ResourceScheduler {
             if (startDay < 0 || startDay >= this.options.daysToShow) return;
             
             const taskEl = document.createElement('div');
-            taskEl.className = `task ${task.type || 'project'}`;
+            taskEl.className = `grp-task${task.type ? ` grp-${task.type}` : ''}`;
             taskEl.dataset.taskId = task.id;
             taskEl.innerHTML = `
-                <span class="task-text">${task.title || 'Untitled'}</span>
-                <button class="task-delete-btn" title="Verwijder taak">&times;</button>
+                <span class="grp-task-text">${task.title || 'Untitled'}</span>
+                <button class="grp-task-delete-btn" title="Verwijder taak">&times;</button>
             `;
             taskEl.title = `${task.title || 'Untitled'} (${task.duration || 1} dagen)`;
             
@@ -549,7 +557,7 @@ class ResourceScheduler {
             taskEl.addEventListener('mousedown', (e) => this.startDrag(e));
             
             // Add delete functionality
-            const deleteBtn = taskEl.querySelector('.task-delete-btn');
+            const deleteBtn = taskEl.querySelector('.grp-task-delete-btn');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -559,20 +567,20 @@ class ResourceScheduler {
             
             // Add click to select functionality
             taskEl.addEventListener('click', (e) => {
-                if (!e.target.closest('.task-delete-btn')) {
+                if (!e.target.closest('.grp-task-delete-btn')) {
                     this.selectTask(task.id);
                 }
             });
             
             // Add double-click to edit functionality
             taskEl.addEventListener('dblclick', (e) => {
-                if (!e.target.closest('.task-delete-btn')) {
+                if (!e.target.closest('.grp-task-delete-btn')) {
                     this.handleTaskDoubleClick(task.id);
                 }
             });
             
             // Add to timeline area
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             if (!timelineArea) {
                 throw new Error('Timeline area not found');
             }
@@ -692,8 +700,8 @@ class ResourceScheduler {
                 this.selectedCell = null;
             } else {
                 // Creating new task from cell click
-                const cell = e ? e.target.closest('.timeline-cell') : null;
-                if (!cell || e.target.closest('.task')) return;
+                const cell = e ? e.target.closest('.grp-timeline-cell') : null;
+                if (!cell || e.target.closest('.grp-task')) return;
                 
                 this.selectedCell = {
                     resourceIndex: parseInt(cell.dataset.resourceIndex),
@@ -711,24 +719,40 @@ class ResourceScheduler {
             
             const modalTitle = modal.querySelector('h2');
             const titleInput = document.getElementById('taskTitle');
+            const startInput = document.getElementById('taskStart');
             const durationInput = document.getElementById('taskDuration');
+            const resourceSelect = document.getElementById('taskResource');
             const typeInput = document.getElementById('taskType');
             
-            if (!titleInput || !durationInput || !typeInput) {
+            if (!titleInput || !startInput || !durationInput || !resourceSelect || !typeInput) {
                 throw new Error('Modal form elements not found');
+            }
+            
+            // Fill resource select options if not already filled
+            if (resourceSelect.options.length === 0) {
+                this.resources.forEach((resource, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = resource.name;
+                    resourceSelect.appendChild(option);
+                });
             }
             
             if (existingTask) {
                 // Fill form with existing task data
                 if (modalTitle) modalTitle.textContent = 'Taak Bewerken';
                 titleInput.value = existingTask.title || '';
+                startInput.value = existingTask.start || '';
                 durationInput.value = existingTask.duration || 1;
+                resourceSelect.value = existingTask.resourceIndex || 0;
                 typeInput.value = existingTask.type || 'project';
             } else {
-                // Reset form for new task
+                // Reset form for new task and prefill with selected cell data
                 if (modalTitle) modalTitle.textContent = 'Nieuwe Taak';
                 titleInput.value = '';
+                startInput.value = this.selectedCell.date;
                 durationInput.value = '1';
+                resourceSelect.value = this.selectedCell.resourceIndex;
                 typeInput.value = 'project';
             }
             
@@ -759,19 +783,27 @@ class ResourceScheduler {
             e.preventDefault();
             
             const titleInput = document.getElementById('taskTitle');
+            const startInput = document.getElementById('taskStart');
             const durationInput = document.getElementById('taskDuration');
+            const resourceSelect = document.getElementById('taskResource');
             const typeInput = document.getElementById('taskType');
             
-            if (!titleInput || !durationInput || !typeInput) {
+            if (!titleInput || !startInput || !durationInput || !resourceSelect || !typeInput) {
                 throw new Error('Form elements not found');
             }
             
             const title = titleInput.value.trim();
+            const start = startInput.value;
             const duration = parseInt(durationInput.value);
+            const resourceIndex = parseInt(resourceSelect.value);
             const type = typeInput.value;
             
             if (!title) {
                 throw new Error('Task title is required');
+            }
+            
+            if (!start) {
+                throw new Error('Start date is required');
             }
             
             if (isNaN(duration) || duration < 1) {
@@ -783,11 +815,13 @@ class ResourceScheduler {
                 const oldTask = { ...this.editingTask };
                 
                 this.editingTask.title = title;
+                this.editingTask.start = start;
                 this.editingTask.duration = duration;
+                this.editingTask.resourceIndex = resourceIndex;
                 this.editingTask.type = type;
                 
                 // Recalculate end date based on new duration
-                this.editingTask.end = this.calculateEndDate(this.editingTask.start, duration);
+                this.editingTask.end = this.calculateEndDate(start, duration);
                 
                 // Re-render the task
                 const taskEl = this.container.querySelector(`[data-task-id="${this.editingTask.id}"]`);
@@ -796,19 +830,19 @@ class ResourceScheduler {
                 
                 this.emit('taskUpdated', { task: this.editingTask, oldTask });
                 
-            } else if (this.selectedCell) {
+            } else {
                 // Create new task
-                const cellDate = this.selectedCell.date;
-                
                 const task = {
                     id: ++this.currentTaskId,
                     title: title,
+                    start: start,
                     duration: duration,
-                    resourceIndex: this.selectedCell.resourceIndex,
-                    start: cellDate,
-                    end: this.calculateEndDate(cellDate, duration),
+                    resourceIndex: resourceIndex,
                     type: type
                 };
+                
+                // Calculate end date
+                task.end = this.calculateEndDate(start, duration);
                 
                 this.tasks.push(task);
                 this.addSingleTask(task);
@@ -826,11 +860,11 @@ class ResourceScheduler {
     startDrag(e) {
         try {
             // Don't start drag if clicking on delete button
-            if (e.target.closest('.task-delete-btn')) {
+            if (e.target.closest('.grp-task-delete-btn')) {
                 return;
             }
             
-            const taskEl = e.target.closest('.task');
+            const taskEl = e.target.closest('.grp-task');
             if (!taskEl) {
                 throw new Error('Task element not found');
             }
@@ -872,7 +906,7 @@ class ResourceScheduler {
                 originalStartDay: currentStartDay // Use DOM position
             };
             
-            taskEl.classList.add('dragging');
+            taskEl.classList.add('grp-dragging');
             e.preventDefault();
             
             this.emit('dragStart', { task, element: taskEl });
@@ -900,7 +934,7 @@ class ResourceScheduler {
                 originalWidth: currentWidth
             };
             
-            taskEl.classList.add('resizing');
+            taskEl.classList.add('grp-resizing');
             e.preventDefault();
             
             this.emit('resizeStart', { task, handle, element: taskEl });
@@ -1052,7 +1086,7 @@ class ResourceScheduler {
             });
             
             // Clean up
-            this.dragState.element.classList.remove('dragging');
+            this.dragState.element.classList.remove('grp-dragging');
             
             this.emit('taskMoved', {
                 task: this.dragState.task,
@@ -1069,7 +1103,7 @@ class ResourceScheduler {
             
             // Clean up drag state on error
             if (this.dragState && this.dragState.element) {
-                this.dragState.element.classList.remove('dragging');
+                this.dragState.element.classList.remove('grp-dragging');
             }
             this.dragState = null;
         }
@@ -1109,7 +1143,7 @@ class ResourceScheduler {
             });
             
             // Clean up
-            element.classList.remove('resizing');
+            element.classList.remove('grp-resizing');
             
             this.emit('taskResized', {
                 task: task,
@@ -1129,7 +1163,7 @@ class ResourceScheduler {
             
             // Clean up resize state on error
             if (this.resizeState && this.resizeState.element) {
-                this.resizeState.element.classList.remove('resizing');
+                this.resizeState.element.classList.remove('grp-resizing');
             }
             this.resizeState = null;
         }
@@ -1171,8 +1205,8 @@ class ResourceScheduler {
     selectTask(taskId) {
         try {
             // Remove previous selection
-            this.container.querySelectorAll('.task.selected').forEach(el => {
-                el.classList.remove('selected');
+            this.container.querySelectorAll('.grp-task.grp-selected').forEach(el => {
+                el.classList.remove('grp-selected');
             });
             
             this.selectedTask = taskId;
@@ -1180,7 +1214,7 @@ class ResourceScheduler {
             if (taskId) {
                 const taskEl = this.container.querySelector(`[data-task-id="${taskId}"]`);
                 if (taskEl) {
-                    taskEl.classList.add('selected');
+                    taskEl.classList.add('grp-selected');
                     this.emit('taskSelected', this.getTask(taskId));
                 }
             } else {
@@ -1461,7 +1495,7 @@ class ResourceScheduler {
             document.removeEventListener('keydown', this.handleKeyDown.bind(this));
             
             // Remove scroll listener (always present now)
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             if (timelineArea) {
                 timelineArea.removeEventListener('scroll', this.handleScroll);
             }
@@ -1548,7 +1582,7 @@ class ResourceScheduler {
             console.log('Loading more days...');
             
             // Show loading indicator
-            const loadingIndicator = this.container.querySelector('.loading-indicator');
+            const loadingIndicator = this.container.querySelector('.grp-loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.style.display = 'block';
             }
@@ -1595,7 +1629,7 @@ class ResourceScheduler {
             this.isLoading = false;
             
             // Hide loading indicator
-            const loadingIndicator = this.container.querySelector('.loading-indicator');
+            const loadingIndicator = this.container.querySelector('.grp-loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.style.display = 'none';
             }
@@ -1614,7 +1648,7 @@ class ResourceScheduler {
         try {
             if (this.options.daysToShow <= this.options.maxDaysInMemory) return;
             
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             if (!timelineArea) return;
             
             const scrollLeft = timelineArea.scrollLeft;
@@ -1672,7 +1706,7 @@ class ResourceScheduler {
      */
     getVisibleDateRange() {
         try {
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             if (!timelineArea) {
                 throw new Error('Timeline area not found');
             }
@@ -1720,7 +1754,7 @@ class ResourceScheduler {
                 return false;
             }
             
-            const timelineArea = this.container.querySelector('.timeline-area');
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
             if (!timelineArea) {
                 throw new Error('Timeline area not found');
             }
@@ -1744,8 +1778,8 @@ class ResourceScheduler {
     
     handleCellClick(e) {
         try {
-            const cell = e.target.closest('.timeline-cell');
-            if (!cell || e.target.closest('.task')) return;
+            const cell = e.target.closest('.grp-timeline-cell');
+            if (!cell || e.target.closest('.grp-task')) return;
             
             const resourceIndex = parseInt(cell.dataset.resourceIndex);
             const dayIndex = parseInt(cell.dataset.dayIndex);
@@ -1776,8 +1810,8 @@ class ResourceScheduler {
     
     handleCellDoubleClick(e) {
         try {
-            const cell = e.target.closest('.timeline-cell');
-            if (!cell || e.target.closest('.task')) return;
+            const cell = e.target.closest('.grp-timeline-cell');
+            if (!cell || e.target.closest('.grp-task')) return;
             
             const resourceIndex = parseInt(cell.dataset.resourceIndex);
             const dayIndex = parseInt(cell.dataset.dayIndex);

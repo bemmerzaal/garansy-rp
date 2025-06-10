@@ -18,7 +18,7 @@ class ResourceScheduler {
                 startDate: new Date(),
                 // Modal options
                 useBuiltInModal: true,
-                cellClickAction: 'single', // 'single' or 'double' - when to open modal/emit event on cell click
+                cellClickAction: 'double', // 'single' or 'double' - when to open modal/emit event on cell click
                 // Infinite scroll options
                 infiniteScroll: true,
                 loadThreshold: 7, // Load more when 7 days left
@@ -1421,7 +1421,23 @@ class ResourceScheduler {
     
     goToToday() {
         try {
-            this.setDateRange(new Date(), this.options.daysToShow);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // First ensure today is within our date range
+            const startDate = new Date(this.currentStartDate);
+            const endDate = new Date(this.currentStartDate);
+            endDate.setDate(endDate.getDate() + this.options.daysToShow - 1);
+            
+            // If today is not in the current range, update the range
+            if (today < startDate || today > endDate) {
+                this.setDateRange(today, this.options.daysToShow);
+            }
+            
+            // Then scroll to today
+            this.scrollToDate(today);
+            
+            this.emit('goToToday', { date: today });
         } catch (error) {
             console.error('Error going to today:', error);
             this.emit('error', { type: 'goToToday', error });

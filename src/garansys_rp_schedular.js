@@ -1600,45 +1600,75 @@ class ResourceScheduler {
     // Infinite Scroll Methods
     
     /**
+     * Calculate how many days fit in the viewport
+     */
+    calculateVisibleDays() {
+        try {
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
+            if (!timelineArea) return this.options.daysToShow;
+            
+            const viewportWidth = timelineArea.clientWidth;
+            return Math.ceil(viewportWidth / this.options.cellWidth);
+        } catch (error) {
+            console.error('Error calculating visible days:', error);
+            return this.options.daysToShow;
+        }
+    }
+
+    /**
+     * Check if we need to load more days based on current zoom and scroll position
+     */
+    checkNeedMoreDays() {
+        try {
+            if (!this.options.infiniteScroll || this.isLoading || this.hasReachedEnd) return false;
+
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
+            if (!timelineArea) return false;
+
+            const visibleDays = this.calculateVisibleDays();
+            const totalDaysNeeded = visibleDays + this.options.loadThreshold;
+
+            // If we need more days than we currently have, load more
+            if (totalDaysNeeded > this.options.daysToShow) {
+                console.log('Need more days due to zoom:', {
+                    visibleDays,
+                    currentDays: this.options.daysToShow,
+                    totalNeeded: totalDaysNeeded
+                });
+                return true;
+            }
+
+            // Also check scroll position
+            const scrollLeft = timelineArea.scrollLeft;
+            const scrollWidth = timelineArea.scrollWidth;
+            const clientWidth = timelineArea.clientWidth;
+            
+            return (scrollLeft + clientWidth >= scrollWidth * 0.9);
+        } catch (error) {
+            console.error('Error checking need more days:', error);
+            return false;
+        }
+    }
+
+    /**
      * Handle scroll events - always active for sync, infinite loading is optional
      */
     handleScroll(e) {
         try {
-            console.log('🖱️ Scroll event triggered!', e.target);
-            
-            const element = e.target;
-            const scrollLeft = element.scrollLeft;
-            const scrollWidth = element.scrollWidth;
-            const clientWidth = element.clientWidth;
-            
-            // Always log scroll info for debugging
-            if (this.options.infiniteScroll) {
-                const scrollPercentage = ((scrollLeft + clientWidth) / scrollWidth * 100);
-                const shouldLoad = scrollLeft + clientWidth >= scrollWidth * 0.9;
-                
-                console.log('Scroll debug:', {
-                    scrollLeft,
-                    scrollWidth,
-                    clientWidth,
-                    scrollPercentage: scrollPercentage.toFixed(1) + '%',
-                    shouldLoad,
-                    isLoading: this.isLoading,
-                    hasReachedEnd: this.hasReachedEnd,
-                    threshold90: scrollWidth * 0.9,
-                    currentPosition: scrollLeft + clientWidth
-                });
-            }
-            
-            // Only do infinite loading if enabled and not already loading
-            if (this.options.infiniteScroll && !this.isLoading && !this.hasReachedEnd) {
-                // Load more content when approaching the end (90% scrolled)
-                if (scrollLeft + clientWidth >= scrollWidth * 0.9) {
-                    console.log('🚀 Triggering loadMoreDays()');
-                    this.loadMoreDays();
-                }
-                
-                // Clean up old days if we have too many
-                this.cleanupOldDays();
+            if (!this.options.infiniteScroll || this.isLoading) return;
+
+            const timelineArea = e.target;
+            const scrollLeft = timelineArea.scrollLeft;
+            const scrollWidth = timelineArea.scrollWidth;
+            const clientWidth = timelineArea.clientWidth;
+
+            // Check if we need to load more days
+            const needsMoreDays = this.checkNeedMoreDays();
+            const isNearStart = scrollLeft <= scrollWidth * 0.1;
+            const isNearEnd = scrollLeft + clientWidth >= scrollWidth * 0.9;
+
+            if (needsMoreDays || isNearStart || isNearEnd) {
+                this.loadMoreDays();
             }
         } catch (error) {
             console.error('Error handling scroll:', error);
@@ -1656,45 +1686,78 @@ class ResourceScheduler {
             this.isLoading = true;
             console.log('Loading more days...');
             
+            const timelineArea = this.container.querySelector('.grp-timeline-area');
+            if (!timelineArea) return;
+
             // Show loading indicator
             const loadingIndicator = this.container.querySelector('.grp-loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.style.display = 'block';
             }
+
+            // Determine if we're loading forward or backward
+            const scrollLeft = timelineArea.scrollLeft;
+            const scrollWidth = timelineArea.scrollWidth;
+            const clientWidth = timelineArea.clientWidth;
+            const isLoadingForward = scrollLeft + clientWidth >= scrollWidth * 0.9;
+
+            // Store current scroll position and day offset
+            const currentScroll = timelineArea.scrollLeft;
+            const daysOffset = Math.floor(currentScroll / this.options.cellWidth);
             
-            this.emit('loadingStart', {
-                currentRange: { ...this.loadedDateRange },
-                requestedDays: this.options.chunkDays
-            });
-            
-            // Calculate new end date
-            const newEndDate = new Date(this.loadedDateRange.end);
-            newEndDate.setDate(newEndDate.getDate() + this.options.chunkDays);
-            
-            // Update visible days
-            const oldDaysToShow = this.options.daysToShow;
-            this.options.daysToShow += this.options.chunkDays;
-            
-            // Update loaded range
-            this.loadedDateRange.end = newEndDate;
-            
+            if (isLoadingForward) {
+                // Loading forward - add days at the end
+                const newEndDate = new Date(this.loadedDateRange.end);
+                newEndDate.setDate(newEndDate.getDate() + this.options.chunkDays);
+                this.loadedDateRange.end = newEndDate;
+                this.options.daysToShow += this.options.chunkDays;
+            } else {
+                // Loading backward - add days at the start
+                const newStartDate = new Date(this.currentStartDate);
+                newStartDate.setDate(newStartDate.getDate() - this.options.chunkDays);
+                this.currentStartDate = newStartDate;
+                this.loadedDateRange.start = newStartDate;
+                this.options.daysToShow += this.options.chunkDays;
+            }
+
             // Re-render the timeline with new days
             this.renderDaysHeader();
             this.renderTimeline();
             this.renderTasks();
-            
-            // Emit event for external systems to load data for new range
+
+            // Restore scroll position
+            if (isLoadingForward) {
+                // When loading forward, maintain the same scroll position
+                timelineArea.scrollLeft = currentScroll;
+            } else {
+                // When loading backward, adjust scroll position to keep the same days visible
+                timelineArea.scrollLeft = currentScroll + (this.options.chunkDays * this.options.cellWidth);
+            }
+
+            // Clean up if we have too many days
+            if (this.options.daysToShow > this.options.maxDaysInMemory) {
+                if (isLoadingForward) {
+                    // Remove days from the start
+                    const daysToRemove = this.options.daysToShow - this.options.maxDaysInMemory;
+                    this.currentStartDate.setDate(this.currentStartDate.getDate() + daysToRemove);
+                    this.loadedDateRange.start.setDate(this.loadedDateRange.start.getDate() + daysToRemove);
+                    this.options.daysToShow -= daysToRemove;
+                    // Adjust scroll position
+                    timelineArea.scrollLeft = Math.max(0, currentScroll - (daysToRemove * this.options.cellWidth));
+                } else {
+                    // Remove days from the end
+                    const daysToRemove = this.options.daysToShow - this.options.maxDaysInMemory;
+                    this.loadedDateRange.end.setDate(this.loadedDateRange.end.getDate() - daysToRemove);
+                    this.options.daysToShow -= daysToRemove;
+                }
+            }
+
             this.emit('dateRangeExtended', {
-                oldEnd: new Date(this.loadedDateRange.end.getTime() - (this.options.chunkDays * 24 * 60 * 60 * 1000)),
-                newEnd: this.loadedDateRange.end,
+                oldEnd: isLoadingForward ? new Date(this.loadedDateRange.end.getTime() - (this.options.chunkDays * 24 * 60 * 60 * 1000)) : null,
+                newEnd: new Date(this.loadedDateRange.end),
                 newDays: this.options.chunkDays,
-                totalDays: this.options.daysToShow
-            });
-            
-            console.log('Loaded more days:', {
-                oldDaysToShow,
-                newDaysToShow: this.options.daysToShow,
-                newEndDate: this.loadedDateRange.end.toISOString().split('T')[0]
+                totalDays: this.options.daysToShow,
+                direction: isLoadingForward ? 'forward' : 'backward'
             });
             
         } catch (error) {
@@ -1708,11 +1771,6 @@ class ResourceScheduler {
             if (loadingIndicator) {
                 loadingIndicator.style.display = 'none';
             }
-            
-            this.emit('loadingEnd', {
-                currentRange: { ...this.loadedDateRange },
-                totalDays: this.options.daysToShow
-            });
         }
     }
     
@@ -1729,8 +1787,8 @@ class ResourceScheduler {
             const scrollLeft = timelineArea.scrollLeft;
             const visibleStartDay = Math.floor(scrollLeft / this.options.cellWidth);
             
-            // Keep buffer days before visible area
-            const keepFromDay = Math.max(0, visibleStartDay - this.options.bufferDays);
+            // Keep more buffer days before visible area to prevent scrolling issues
+            const keepFromDay = Math.max(0, visibleStartDay - this.options.bufferDays * 2);
             
             if (keepFromDay > 0) {
                 console.log('Cleaning up old days:', {
@@ -1741,9 +1799,15 @@ class ResourceScheduler {
                 });
                 
                 // Update start date and days count
-                this.currentStartDate.setDate(this.currentStartDate.getDate() + keepFromDay);
-                this.options.daysToShow -= keepFromDay;
-                this.loadedDateRange.start.setDate(this.loadedDateRange.start.getDate() + keepFromDay);
+                const newStartDate = new Date(this.currentStartDate);
+                newStartDate.setDate(newStartDate.getDate() + keepFromDay);
+                
+                // Calculate the actual number of days to remove
+                const daysToRemove = Math.min(keepFromDay, this.options.daysToShow - this.options.maxDaysInMemory);
+                
+                this.currentStartDate = newStartDate;
+                this.options.daysToShow -= daysToRemove;
+                this.loadedDateRange.start.setDate(this.loadedDateRange.start.getDate() + daysToRemove);
                 
                 // Filter tasks that are still visible
                 const cutoffDate = new Date(this.currentStartDate);
@@ -1755,16 +1819,20 @@ class ResourceScheduler {
                 
                 this.tasks = visibleTasks;
                 
+                // Store scroll position
+                const oldScrollLeft = timelineArea.scrollLeft;
+                
                 // Re-render everything
                 this.renderDaysHeader();
                 this.renderTimeline();
                 this.renderTasks();
                 
                 // Adjust scroll position to maintain visual position
-                timelineArea.scrollLeft = scrollLeft - (keepFromDay * this.options.cellWidth);
+                const scrollAdjustment = daysToRemove * this.options.cellWidth;
+                timelineArea.scrollLeft = Math.max(0, oldScrollLeft - scrollAdjustment);
                 
                 this.emit('daysCleanedUp', {
-                    removedDays: keepFromDay,
+                    removedDays: daysToRemove,
                     removedTasks: removedTasks.length,
                     currentRange: { ...this.loadedDateRange },
                     totalDays: this.options.daysToShow
@@ -2002,6 +2070,12 @@ class ResourceScheduler {
                     newWidth: this.options.cellWidth,
                     action: 'zoomOut'
                 });
+
+                // Check if we need to load more days after zooming out
+                if (this.checkNeedMoreDays()) {
+                    console.log('Loading more days after zoom out');
+                    this.loadMoreDays();
+                }
                 
                 return true;
             }

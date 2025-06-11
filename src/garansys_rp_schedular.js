@@ -19,6 +19,10 @@ class ResourceScheduler {
                 // Modal options
                 useBuiltInModal: true,
                 cellClickAction: 'double', // 'single' or 'double' - when to open modal/emit event on cell click
+                // Zoom options
+                minCellWidth: 40,  // Minimum cell width (zoomed out)
+                maxCellWidth: 200, // Maximum cell width (zoomed in)
+                zoomLevels: [40, 60, 80, 120, 160, 200], // Predefined zoom levels
                 // Infinite scroll options
                 infiniteScroll: true,
                 loadThreshold: 7, // Load more when 7 days left
@@ -206,7 +210,8 @@ class ResourceScheduler {
     
     createHTML() {
         try {
-            this.container.innerHTML = `
+            // Create the basic structure
+            const html = `
                 <div class="grp-scheduler-container">
                     <div class="grp-scheduler-header">
                         <div class="grp-resource-header">Resources</div>
@@ -223,6 +228,56 @@ class ResourceScheduler {
                     </div>
                 </div>
             `;
+
+            // Set the HTML
+            this.container.innerHTML = html;
+            this.container.classList.add('grp-scheduler');
+
+            // Add zoom controls to demo-controls
+            const demoControls = document.querySelector('.demo-controls');
+            if (demoControls) {
+                const zoomControls = document.createElement('div');
+                zoomControls.className = 'grp-zoom-controls';
+                
+                const zoomOutBtn = document.createElement('button');
+                zoomOutBtn.className = 'grp-zoom-button';
+                zoomOutBtn.innerHTML = '−';
+                zoomOutBtn.title = 'Zoom out';
+                zoomOutBtn.onclick = () => this.zoomOut();
+                
+                const todayBtn = document.createElement('button');
+                todayBtn.className = 'grp-today-button';
+                todayBtn.innerHTML = 'Vandaag';
+                todayBtn.title = 'Ga naar vandaag';
+                todayBtn.onclick = () => this.goToToday();
+                
+                const zoomInBtn = document.createElement('button');
+                zoomInBtn.className = 'grp-zoom-button';
+                zoomInBtn.innerHTML = '+';
+                zoomInBtn.title = 'Zoom in';
+                zoomInBtn.onclick = () => this.zoomIn();
+                
+                zoomControls.appendChild(zoomOutBtn);
+                zoomControls.appendChild(todayBtn);
+                zoomControls.appendChild(zoomInBtn);
+                
+                demoControls.appendChild(zoomControls);
+            }
+
+            // Verify all required elements exist
+            const requiredElements = [
+                '.grp-days-header',
+                '.grp-resources-column',
+                '.grp-timeline-grid',
+                '.grp-timeline-area'
+            ];
+
+            for (const selector of requiredElements) {
+                if (!this.container.querySelector(selector)) {
+                    throw new Error(`Required element "${selector}" not found after HTML creation`);
+                }
+            }
+
         } catch (error) {
             console.error('Error creating HTML:', error);
             this.emit('error', { type: 'htmlCreation', error });
@@ -364,10 +419,20 @@ class ResourceScheduler {
     
     render() {
         try {
+            // First ensure the HTML structure exists
+            if (!this.container.querySelector('.grp-scheduler-container')) {
+                this.createHTML();
+            }
+
+            // Now render each component
             this.renderDaysHeader();
             this.renderResources();
             this.renderTimeline();
             this.renderTasks();
+
+            // Setup scroll sync after rendering
+            this.syncScroll();
+
         } catch (error) {
             console.error('Error during render:', error);
             this.emit('error', { type: 'render', error });
@@ -393,6 +458,7 @@ class ResourceScheduler {
                 
                 const dayEl = document.createElement('div');
                 dayEl.className = 'grp-day-column';
+                dayEl.style.width = `${this.options.cellWidth}px`;
                 
                 // Add weekend class
                 if (date.getDay() === 0 || date.getDay() === 6) {
@@ -411,8 +477,6 @@ class ResourceScheduler {
                     <div class="grp-day-name">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
                     <div class="grp-day-date">${displayDate}</div>
                 `;
-                
-                console.log(`🗓️ HEADER[${i}]: Visual="${displayDate}", ISO="${isoDate}", DateObject="${date.toString()}", getDate="${date.getDate()}", getMonth="${date.getMonth() + 1}"`);
                 
                 daysHeader.appendChild(dayEl);
             }
@@ -458,8 +522,6 @@ class ResourceScheduler {
             
             timelineGrid.innerHTML = '';
             
-            console.log('🔲 TIMELINE DEBUG - currentStartDate:', this.dateToYMD(this.currentStartDate));
-            
             this.resources.forEach((resource, resourceIndex) => {
                 const rowEl = document.createElement('div');
                 rowEl.className = 'grp-timeline-row';
@@ -470,6 +532,7 @@ class ResourceScheduler {
                     
                     const cellEl = document.createElement('div');
                     cellEl.className = 'grp-timeline-cell';
+                    cellEl.style.width = `${this.options.cellWidth}px`;
                     cellEl.dataset.resourceIndex = resourceIndex;
                     cellEl.dataset.dayIndex = dayIndex;
                     cellEl.dataset.date = this.dateToYMD(date);
@@ -484,10 +547,6 @@ class ResourceScheduler {
                     today.setHours(0, 0, 0, 0);
                     if (date.getTime() === today.getTime()) {
                         cellEl.classList.add('grp-today');
-                    }
-                    
-                    if (resourceIndex === 0) { // Only log first row to avoid spam
-                        console.log(`🔲 CELL[${dayIndex}]: dataset.date="${cellEl.dataset.date}", ISO="${this.dateToYMD(date)}"`);
                     }
                     
                     cellEl.addEventListener('click', (e) => this.handleCellClick(e));
@@ -1872,6 +1931,142 @@ class ResourceScheduler {
             console.error('Error handling task double click:', error);
             this.emit('error', { type: 'taskDoubleClick', error });
         }
+    }
+    
+    /**
+     * Zoom in - increase cell width to next zoom level
+     */
+    zoomIn() {
+        try {
+            const currentWidth = this.options.cellWidth;
+            const nextWidth = this.options.zoomLevels.find(width => width > currentWidth);
+            
+            if (nextWidth && nextWidth <= this.options.maxCellWidth) {
+                const oldWidth = this.options.cellWidth;
+                this.options.cellWidth = nextWidth;
+                
+                // Store current scroll position and ratio
+                const timelineArea = this.container.querySelector('.grp-timeline-area');
+                const scrollRatio = timelineArea ? timelineArea.scrollLeft / (oldWidth * this.options.daysToShow) : 0;
+                
+                // Re-render with new cell width
+                this.render();
+                
+                // Restore scroll position based on ratio
+                if (timelineArea) {
+                    timelineArea.scrollLeft = scrollRatio * (this.options.cellWidth * this.options.daysToShow);
+                }
+                
+                this.emit('zoomChanged', {
+                    oldWidth: oldWidth,
+                    newWidth: this.options.cellWidth,
+                    action: 'zoomIn'
+                });
+                
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error during zoom in:', error);
+            this.emit('error', { type: 'zoomIn', error });
+            return false;
+        }
+    }
+    
+    /**
+     * Zoom out - decrease cell width to previous zoom level
+     */
+    zoomOut() {
+        try {
+            const currentWidth = this.options.cellWidth;
+            const prevWidth = [...this.options.zoomLevels].reverse().find(width => width < currentWidth);
+            
+            if (prevWidth && prevWidth >= this.options.minCellWidth) {
+                const oldWidth = this.options.cellWidth;
+                this.options.cellWidth = prevWidth;
+                
+                // Store current scroll position and ratio
+                const timelineArea = this.container.querySelector('.grp-timeline-area');
+                const scrollRatio = timelineArea ? timelineArea.scrollLeft / (oldWidth * this.options.daysToShow) : 0;
+                
+                // Re-render with new cell width
+                this.render();
+                
+                // Restore scroll position based on ratio
+                if (timelineArea) {
+                    timelineArea.scrollLeft = scrollRatio * (this.options.cellWidth * this.options.daysToShow);
+                }
+                
+                this.emit('zoomChanged', {
+                    oldWidth: oldWidth,
+                    newWidth: this.options.cellWidth,
+                    action: 'zoomOut'
+                });
+                
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error during zoom out:', error);
+            this.emit('error', { type: 'zoomOut', error });
+            return false;
+        }
+    }
+    
+    /**
+     * Set zoom to a specific level
+     */
+    setZoom(cellWidth) {
+        try {
+            // Ensure the width is within bounds and is a valid zoom level
+            if (!this.options.zoomLevels.includes(cellWidth)) {
+                throw new Error('Invalid zoom level');
+            }
+            
+            if (cellWidth >= this.options.minCellWidth && 
+                cellWidth <= this.options.maxCellWidth) {
+                
+                const oldWidth = this.options.cellWidth;
+                this.options.cellWidth = cellWidth;
+                
+                // Store current scroll position and ratio
+                const timelineArea = this.container.querySelector('.grp-timeline-area');
+                const scrollRatio = timelineArea ? timelineArea.scrollLeft / (oldWidth * this.options.daysToShow) : 0;
+                
+                // Re-render with new cell width
+                this.render();
+                
+                // Restore scroll position based on ratio
+                if (timelineArea) {
+                    timelineArea.scrollLeft = scrollRatio * (this.options.cellWidth * this.options.daysToShow);
+                }
+                
+                this.emit('zoomChanged', {
+                    oldWidth: oldWidth,
+                    newWidth: this.options.cellWidth,
+                    action: 'setZoom'
+                });
+                
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error setting zoom:', error);
+            this.emit('error', { type: 'setZoom', error });
+            return false;
+        }
+    }
+    
+    /**
+     * Get current zoom level
+     */
+    getZoomLevel() {
+        return {
+            current: this.options.cellWidth,
+            min: this.options.minCellWidth,
+            max: this.options.maxCellWidth,
+            available: this.options.zoomLevels
+        };
     }
 }
 

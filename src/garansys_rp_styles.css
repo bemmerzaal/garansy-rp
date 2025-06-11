@@ -24,6 +24,8 @@
     background: #f8f9fa;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 }
 
 .grp-days-header-container {
@@ -37,7 +39,6 @@
 }
 
 .grp-day-column {
-    width: 80px;
     padding: 8px 4px;
     text-align: center;
     border-right: 1px solid #e9ecef;
@@ -110,7 +111,6 @@
 }
 
 .grp-timeline-cell {
-    width: 80px;
     height: 50px;
     border-right: 1px solid #f1f3f4;
     cursor: pointer;
@@ -440,4 +440,96 @@
     .grp-timeline-cell {
         width: 60px;
     }
+}
+
+.grp-toolbar {
+    padding: 10px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.grp-nav-controls {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.grp-nav-button {
+    border: 1px solid #ddd;
+    background: white;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.grp-nav-button:hover,
+.grp-zoom-button:hover,
+.grp-today-button:hover {
+    background: #f5f5f5;
+}
+
+.grp-nav-button:active,
+.grp-zoom-button:active,
+.grp-today-button:active {
+    background: #e5e5e5;
+}
+
+.grp-zoom-controls {
+    display: flex;
+    gap: 5px;
+    z-index: 1000;
+    background: white;
+    padding: 5px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.grp-zoom-button {
+    border: 1px solid #ddd;
+    background: white;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+}
+
+.grp-zoom-button:hover {
+    background: #f5f5f5;
+}
+
+.grp-zoom-button:active {
+    background: #e5e5e5;
+}
+
+.grp-today-button {
+    color: #007bff;
+    font-weight: 500;
+    min-width: auto;
+    padding: 5px 12px;
+}
+
+.grp-zoom-level {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 60px;
+    text-align: center;
+    background: white;
+}
+
+.grp-header-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

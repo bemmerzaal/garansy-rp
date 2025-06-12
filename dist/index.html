@@ -406,7 +406,14 @@
                 loadThreshold: 7, // Load more when 7 days left visible
                 bufferDays: 14, // Keep 14 days buffer
                 maxDaysInMemory: 84, // Keep max 84 days (12 weeks)
-                chunkDays: 21 // Load 21 days at a time
+                chunkDays: 21, // Load 21 days at a time
+                // Example of custom colors for different task types
+                taskColors: {
+                    'project': { start: '#FFD7C7', end: '#F99997' },      // Corrected from 'Project'
+                    'meeting': { start: '#A4BBF1' },                      // Corrected from 'Meeting'
+                    'vacation': { start: '#EE50F2' },                     // Corrected from 'Vakantie' to match data
+                    'event': { start: '#F20E3B'}                          // This one was correct
+                }
             });
             
             // Load your data

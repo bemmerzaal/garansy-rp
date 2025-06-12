@@ -29,6 +29,7 @@ class ResourceScheduler {
                 bufferDays: 14, // Keep 14 days buffer on both sides
                 maxDaysInMemory: 84, // Keep max 84 days (12 weeks) in memory
                 chunkDays: 21, // Load 21 days at a time
+                taskColors: {}, // User-defined colors for task types
                 ...options
             };
             
@@ -41,6 +42,7 @@ class ResourceScheduler {
             this.selectedCell = null;
             this.selectedTask = null;
             this.editingTask = null;
+            this._taskToDelete = null;
             this.events = {};
             
             // Infinite scroll state
@@ -289,10 +291,14 @@ class ResourceScheduler {
         try {
             // Modal events (only if using built-in modal)
             if (this.options.useBuiltInModal) {
-                // Remove any old modal from previous initializations
+                // Remove any old modals from previous initializations
                 const oldModal = document.getElementById('taskModal');
+                const oldDeleteModal = document.getElementById('deleteTaskModal');
                 if (oldModal) {
                     oldModal.remove();
+                }
+                if (oldDeleteModal) {
+                    oldDeleteModal.remove();
                 }
                 
                 // Create modal HTML and append to the body
@@ -336,24 +342,52 @@ class ResourceScheduler {
                                 </div>
                             </form>
                         </div>
-                    </div>
-                `;
+                    </div>`;
+
+                const deleteModalHTML = `
+                    <div id="deleteTaskModal" class="grp-modal">
+                        <div class="grp-modal-content">
+                            <div class="grp-modal-header">
+                                <span class="grp-close">&times;</span>
+                                <h2>Taak Verwijderen</h2>
+                            </div>
+                            <div class="grp-modal-body">
+                                <p>Weet je zeker dat je "<span id="deleteTaskTitle"></span>" wilt verwijderen?</p>
+                            </div>
+                            <div class="grp-modal-footer">
+                                <button type="button" class="grp-btn grp-btn-secondary" onclick="this.closest('.grp-modal').style.display='none'">Annuleren</button>
+                                <button type="button" class="grp-btn grp-btn-danger" id="confirmDeleteBtn">Verwijderen</button>
+                            </div>
+                        </div>
+                    </div>`;
+                
                 document.body.insertAdjacentHTML('beforeend', modalHTML);
+                document.body.insertAdjacentHTML('beforeend', deleteModalHTML);
                 
                 const modal = document.getElementById('taskModal');
+                const deleteModal = document.getElementById('deleteTaskModal');
                 const closeBtn = modal ? modal.querySelector('.grp-close') : null;
+                const deleteCloseBtn = deleteModal ? deleteModal.querySelector('.grp-close') : null;
                 const form = document.getElementById('taskForm');
+                const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                 
                 if (closeBtn) {
                     closeBtn.onclick = () => this.closeTaskModal();
                 }
+                if (deleteCloseBtn) {
+                    deleteCloseBtn.onclick = () => this.closeDeleteTaskModal();
+                }
                 if (modal) {
                     window.onclick = (e) => {
                         if (e.target === modal) this.closeTaskModal();
+                        if (e.target === deleteModal) this.closeDeleteTaskModal();
                     };
                 }
                 if (form) {
                     form.onsubmit = (e) => this.saveTask(e);
+                }
+                if (confirmDeleteBtn) {
+                    confirmDeleteBtn.onclick = () => this.confirmDeleteTask();
                 }
             }
             
@@ -595,6 +629,17 @@ class ResourceScheduler {
             const taskEl = document.createElement('div');
             taskEl.className = `grp-task${task.type ? ` grp-${task.type}` : ''}`;
             taskEl.dataset.taskId = task.id;
+
+            // Apply custom colors if defined
+            if (task.type && this.options.taskColors && this.options.taskColors[task.type]) {
+                const colors = this.options.taskColors[task.type];
+                if (colors.start && colors.end) {
+                    taskEl.style.background = `linear-gradient(135deg, ${colors.start} 0%, ${colors.end} 100%)`;
+                } else if (colors.start) {
+                    taskEl.style.background = colors.start;
+                }
+            }
+            
             taskEl.innerHTML = `
                 <span class="grp-task-text">${task.title || 'Untitled'}</span>
                 <button class="grp-task-delete-btn" title="Verwijder taak">&times;</button>
@@ -606,11 +651,10 @@ class ResourceScheduler {
             const left = startDay * this.options.cellWidth;
             const top = (task.resourceIndex || 0) * (this.options.rowHeight + 1);
             
-            taskEl.style.cssText = `
-                width: ${width}px;
-                left: ${left}px;
-                top: ${top}px;
-            `;
+            // Set styles individually to avoid overwriting the background
+            taskEl.style.width = `${width}px`;
+            taskEl.style.left = `${left}px`;
+            taskEl.style.top = `${top}px`;
             
             // Add drag functionality
             taskEl.addEventListener('mousedown', (e) => this.startDrag(e));
@@ -1293,20 +1337,82 @@ class ResourceScheduler {
             const task = this.getTask(taskId);
             if (!task) return;
             
-            // Show confirmation dialog
-            const confirmed = confirm(`Weet je zeker dat je "${task.title}" wilt verwijderen?`);
-            if (!confirmed) return;
+            // Emit event to allow external handling
+            this.emit('taskDeleteRequested', task);
+            
+            // Use built-in modal if enabled
+            if (this.options.useBuiltInModal) {
+                this.openDeleteTaskModal(task);
+            }
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            this.emit('error', { type: 'taskDelete', error });
+        }
+    }
+
+    /**
+     * Open the delete confirmation modal
+     */
+    openDeleteTaskModal(task) {
+        try {
+            const modal = document.getElementById('deleteTaskModal');
+            const titleSpan = document.getElementById('deleteTaskTitle');
+            
+            if (!modal || !titleSpan) {
+                throw new Error('Delete modal elements not found');
+            }
+            
+            titleSpan.textContent = task.title;
+            modal.style.display = 'block';
+            
+            // Store the task ID for the confirmation
+            this._taskToDelete = task.id;
+            
+        } catch (error) {
+            console.error('Error opening delete modal:', error);
+            this.emit('error', { type: 'modalOpen', error });
+        }
+    }
+    
+    /**
+     * Close the delete confirmation modal
+     */
+    closeDeleteTaskModal() {
+        try {
+            const modal = document.getElementById('deleteTaskModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            this._taskToDelete = null;
+        } catch (error) {
+            console.error('Error closing delete modal:', error);
+            this.emit('error', { type: 'modalClose', error });
+        }
+    }
+    
+    /**
+     * Confirm and execute task deletion
+     */
+    confirmDeleteTask() {
+        try {
+            if (this._taskToDelete === null) {
+                throw new Error('No task selected for deletion');
+            }
             
             // If this was the selected task, deselect it
-            if (this.selectedTask === taskId) {
+            if (this.selectedTask === this._taskToDelete) {
                 this.selectedTask = null;
             }
             
             // Remove the task
-            this.removeTask(taskId);
+            this.removeTask(this._taskToDelete);
+            
+            // Close the modal
+            this.closeDeleteTaskModal();
+            
         } catch (error) {
-            console.error('Error deleting task:', error);
-            this.emit('error', { type: 'taskDelete', error });
+            console.error('Error confirming task deletion:', error);
+            this.emit('error', { type: 'taskDeleteConfirm', error });
         }
     }
     
@@ -1575,9 +1681,11 @@ class ResourceScheduler {
                 timelineArea.removeEventListener('scroll', this.handleScroll);
             }
             
-            // Remove modal if it exists
+            // Remove modals if they exist
             const modal = document.getElementById('taskModal');
+            const deleteModal = document.getElementById('deleteTaskModal');
             if (modal) modal.remove();
+            if (deleteModal) deleteModal.remove();
             
             // Clear container
             this.container.innerHTML = '';
@@ -1588,6 +1696,7 @@ class ResourceScheduler {
             this.selectedCell = null;
             this.selectedTask = null;
             this.editingTask = null;
+            this._taskToDelete = null;
             this.events = {};
             
             this.emit('destroyed');

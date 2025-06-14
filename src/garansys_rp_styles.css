@@ -473,64 +473,50 @@
     transition: all 0.2s ease;
 }
 
-.grp-nav-button:hover,
-.grp-zoom-button:hover,
-.grp-today-button:hover {
+.grp-nav-button:hover {
     background: #f5f5f5;
 }
 
-.grp-nav-button:active,
-.grp-zoom-button:active,
-.grp-today-button:active {
+.grp-nav-button:active {
     background: #e5e5e5;
 }
 
 .grp-zoom-controls {
     display: flex;
-    gap: 5px;
-    z-index: 1000;
-    background: white;
-    padding: 5px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.grp-zoom-button {
-    border: 1px solid #ddd;
-    background: white;
-    padding: 5px 10px;
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 14px;
-    display: flex;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    overflow: hidden;
     align-items: center;
-    justify-content: center;
-    min-width: 30px;
 }
 
-.grp-zoom-button:hover {
-    background: #f5f5f5;
-}
-
-.grp-zoom-button:active {
-    background: #e5e5e5;
-}
-
+.grp-zoom-button,
 .grp-today-button {
-    color: #007bff;
-    font-weight: 500;
-    min-width: auto;
-    padding: 5px 12px;
+    padding: 8px 16px;
+    border: 0;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    border-right: 1px solid #dee2e6;
+    border-radius: 0;
+}
+
+.grp-zoom-controls > button:last-child {
+    border-right: none;
+}
+
+.grp-zoom-button:hover,
+.grp-today-button:hover {
+    background: #f8f9fa;
+}
+
+.grp-zoom-button:active,
+.grp-today-button:active {
+    background: #e9ecef;
 }
 
 .grp-zoom-level {
-    padding: 5px 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 0 12px;
     font-size: 14px;
-    min-width: 60px;
-    text-align: center;
-    background: white;
 }
 
 .grp-header-title {

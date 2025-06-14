@@ -235,37 +235,6 @@ class ResourceScheduler {
             this.container.innerHTML = html;
             this.container.classList.add('grp-scheduler');
 
-            // Add zoom controls to demo-controls
-            const demoControls = document.querySelector('.demo-controls');
-            if (demoControls) {
-                const zoomControls = document.createElement('div');
-                zoomControls.className = 'grp-zoom-controls';
-                
-                const zoomOutBtn = document.createElement('button');
-                zoomOutBtn.className = 'grp-zoom-button';
-                zoomOutBtn.innerHTML = '−';
-                zoomOutBtn.title = 'Zoom out';
-                zoomOutBtn.onclick = () => this.zoomOut();
-                
-                const todayBtn = document.createElement('button');
-                todayBtn.className = 'grp-today-button';
-                todayBtn.innerHTML = 'Vandaag';
-                todayBtn.title = 'Ga naar vandaag';
-                todayBtn.onclick = () => this.goToToday();
-                
-                const zoomInBtn = document.createElement('button');
-                zoomInBtn.className = 'grp-zoom-button';
-                zoomInBtn.innerHTML = '+';
-                zoomInBtn.title = 'Zoom in';
-                zoomInBtn.onclick = () => this.zoomIn();
-                
-                zoomControls.appendChild(zoomOutBtn);
-                zoomControls.appendChild(todayBtn);
-                zoomControls.appendChild(zoomInBtn);
-                
-                demoControls.appendChild(zoomControls);
-            }
-
             // Verify all required elements exist
             const requiredElements = [
                 '.grp-days-header',

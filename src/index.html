@@ -60,6 +60,9 @@
         .demo-controls button.primary:hover {
             background: #3367d6;
         }
+        .grp-zoom-controls button{
+            border:0px;
+        }
         
         .event-log {
             margin-top: 20px;
@@ -99,15 +102,22 @@
         
         <div class="demo-controls">
             <button onclick="addRandomTask()" class="primary">Voeg Random Taak Toe</button>
-            <button onclick="exportData()">Export Data (JSON)</button>
-            <button onclick="importSampleData()">Laad Sample Data</button>
+            
             <button onclick="clearAllTasks()">Wis Alle Taken</button>
-            <button onclick="scheduler.goToPreviousWeek()">← Vorige Week</button>
-            <button onclick="scheduler.goToToday()">Vandaag</button>
-            <button onclick="scheduler.goToNextWeek()">Volgende Week →</button>
-            <button onclick="testInfiniteScroll()" class="primary">Test Infinite Scroll</button>
-            <button onclick="showVisibleRange()">Toon Zichtbaar Bereik</button>
-            <button onclick="scrollToFutureDate()">Ga naar Toekomstige Datum</button>
+            <button onclick="exportData()">Export Data (JSON)</button>
+            
+            <!-- Week Navigation -->
+            <div class="grp-zoom-controls">
+                <button onclick="scheduler.goToPreviousWeek()" class="grp-today-button">←</button>
+                <button onclick="scheduler.goToToday()" class="grp-today-button">Vandaag</button>
+                <button onclick="scheduler.goToNextWeek()" class="grp-today-button">→</button>
+            </div>
+            
+            <!-- Zoom Controls -->
+            <div class="grp-zoom-controls">
+                <button onclick="scheduler.zoomOut()" class="grp-zoom-button" title="Zoom out">−</button>
+                <button onclick="scheduler.zoomIn()" class="grp-zoom-button" title="Zoom in">+</button>
+            </div>
         </div>
         
         <!-- Scheduler Container -->
@@ -590,71 +600,6 @@
             URL.revokeObjectURL(url);
             
             logEvent('Export', `Data exported with ${data.tasks.length} tasks`);
-        }
-        
-        function testInfiniteScroll() {
-            const schedulerContainer = document.querySelector('#scheduler-container');
-            if (!schedulerContainer) return;
-            
-            // Scroll to the right edge to trigger loading
-            const maxScroll = schedulerContainer.scrollWidth - schedulerContainer.clientWidth;
-            const targetScroll = maxScroll - 200; // Almost at the end
-            
-            schedulerContainer.scrollLeft = targetScroll;
-            logEvent('Test Scroll', `Scrolled to position ${targetScroll} to test infinite loading`);
-        }
-        
-        function showVisibleRange() {
-            const visibleRange = scheduler.getVisibleDateRange();
-            if (visibleRange) {
-                logEvent('Visible Range', `${visibleRange.start.toLocaleDateString()} - ${visibleRange.end.toLocaleDateString()} (days ${visibleRange.startDay}-${visibleRange.endDay})`);
-            }
-        }
-        
-        function scrollToFutureDate() {
-            // Try to scroll to a date 30 days in the future
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 30);
-            
-            const success = scheduler.scrollToDate(futureDate);
-            if (success) {
-                logEvent('Scroll to Date', `Successfully scrolled to ${futureDate.toLocaleDateString()}`);
-            } else {
-                logEvent('Scroll to Date', `Date ${futureDate.toLocaleDateString()} not in loaded range - triggering load`);
-                // Could trigger loading more days here if needed
-            }
-        }
-        
-        function importSampleData() {
-            // Add some more sample tasks
-            const sampleTasks = [
-                {
-                    title: 'Product Launch',
-                    duration: 3,
-                    resourceIndex: 0,
-                    start: '2025-06-23',
-                    type: 'project',
-                    priority: 'high'
-                },
-                {
-                    title: 'Team Building',
-                    duration: 1,
-                    resourceIndex: 1,
-                    start: '2025-06-25',
-                    type: 'meeting',
-                    priority: 'medium'
-                }
-            ];
-            
-            sampleTasks.forEach(task => {
-                const endDate = new Date(task.start);
-                endDate.setDate(endDate.getDate() + task.duration - 1);
-                task.end = endDate.toISOString().split('T')[0];
-                
-                scheduler.addTask(task);
-            });
-            
-            logEvent('Import', `Added ${sampleTasks.length} sample tasks`);
         }
         
         function clearAllTasks() {
